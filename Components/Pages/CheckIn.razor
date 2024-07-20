@@ -37,7 +37,7 @@
         {
             _client = _challongeAuth.GetClient();
 
-            var participants = await _client.GetParticipantsAsync("UniqueClashTB");
+            var participants = await _client.GetParticipantsAsync("int7et65");
             List<Participant> participantsList = participants.ToList();
             foreach (var participant in participantsList)
             {

@@ -1,4 +1,224 @@
 @page "/Bracket"
-<MudText>
-    Bracket Page
-</MudText>
+@using BeybladeTournamentManager.ApiCalls.Challonge
+@using BeybladeTournamentManager.ApiCalls.Challonge.Data
+@using Challonge.Api
+@using Challonge.Objects
+@inject IAutentication _challongeAuth
+
+<MudPaper>
+    <MudContainer>
+        @if (!matchesLoaded)
+        {
+            <MudCard>
+                <MudText class="d-flex justify-center">Loading Matches</MudText>
+            </MudCard>
+        }
+        else
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <div class="d-flex justify-content-between"> <!-- Flex container for rounds -->
+                        @foreach (var roundGroup in matches.GroupBy(m => m.Round).OrderBy(g => g.Key))
+                        {
+                            <div class="round"> <!-- Each round is a flex column -->
+
+                                <MudText Typo="Typo.h6" Class="my-2">Round: @roundGroup.Key</MudText>
+
+                                @foreach (var match in roundGroup)
+                                {
+                                    @if (playerNames.ContainsKey(match.Player1Id.Value))
+                                    {
+                                        finals = true;
+                                        if (!finalsMatches.Contains(match))
+                                        {
+                                            finalsMatches.Add(match);
+                                        }
+
+                                    }
+                                    else
+                                    {
+                                        <div class="bracket-match"> <!-- Each match in the round -->
+                                            <MudCard>
+                                                <MudText>@(GetPlayer(match, match.Player1Id.Value).Result) - @string.Join(", ",
+                                    match.Scores.Select(x =>
+                                    x.PlayerOneScore))</MudText>
+                                                <MudText>@(GetPlayer(match, match.Player2Id.Value).Result) - @string.Join(", ",
+                                    match.Scores.Select(x =>
+                                    x.PlayerTwoScore))</MudText>
+                                            </MudCard>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        }
+                    </div>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <div class="d-flex justify-content-between">
+                        @if (finalsMatches.Count > 0)
+                        {
+                            @foreach (var roundGroup in finalsMatches.GroupBy(m => m.Round).OrderBy(g => g.Key))
+                            {
+                                <div class="finals-round">
+                                    <!-- Each round in the tournament -->
+                                    @if (roundGroup.Key == 2)
+                                    {
+                                        <MudText Typo="Typo.h6" Class="my-2">Finals</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.h6" Class="my-2">Semi-Finals</MudText>
+                                    }
+
+                                    @foreach (var match in roundGroup)
+                                    {
+                                        <div class="bracket-match"> <!-- Each match in the round -->
+                                            <MudCard>
+                                                <MudText>@(GetPlayer(match, match.Player1Id.Value).Result) - @string.Join(", ",
+                                    match.Scores.Select(x => x.PlayerOneScore))</MudText>
+                                                <MudText>@(GetPlayer(match, match.Player2Id.Value).Result) - @string.Join(", ",
+                                    match.Scores.Select(x => x.PlayerTwoScore))</MudText>
+                                            </MudCard>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </MudItem>
+            </MudGrid>
+        }
+    </MudContainer>
+</MudPaper>
+
+@code {
+    ChallongeClient _client;
+    private MudTable<Player> _table;
+    List<Player> players = new List<Player>();
+    List<Match> matches = new List<Match>();
+    List<Match> finalsMatches = new List<Match>();
+    List<Participant> participants = new List<Participant>();
+    Tournament tournament;
+
+    private Dictionary<long, string> playerNames = new Dictionary<long, string>();
+    private Dictionary<long, List<string>> matchList = new Dictionary<long, List<string>>();
+    int rounds = 0;
+    bool matchesLoaded = false;
+    bool canAddMatch = false;
+    bool finals = false;
+    bool grandFinals = false;
+    string tournamentUrl = "int7et65";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _client = _challongeAuth.GetClient();
+
+        if (_client != null)
+        {
+            tournament = await _client.GetTournamentByUrlAsync(tournamentUrl);
+            matches = (await _client.GetMatchesAsync(tournamentUrl)).ToList();
+            participants = (await _client.GetParticipantsAsync(tournamentUrl)).ToList();
+
+            foreach (var participant in participants)
+            {
+                playerNames.Add(participant.Id, await GetPlayerName(participant.Id));
+            }
+
+            rounds = matches.Max(m => m.Round);
+            matchesLoaded = true;
+            StateHasChanged();
+        }
+    }
+
+    public async Task<string> GetPlayerName(long? pid)
+    {
+        try
+        {
+            var participant = await _client.GetParticipantAsync(tournamentUrl, pid.Value);
+            return participant.Name;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            return "Player Not Found";
+        }
+    }
+
+    public async Task<string> GetPlayer(Match match, long? id)
+    {
+
+        if (tournament.GroupStagesEnabled && !playerNames.ContainsKey(id.Value))
+        {
+            // Look for the player in the participant list
+            var participant = participants.FirstOrDefault(p => p.GroupPlayerIds.FirstOrDefault() == id);
+            return participant.Name;
+
+        }
+        else if (playerNames.ContainsKey(id.Value))
+        {
+            return playerNames[id.Value];
+        }
+        else
+        {
+            return "Player Not Found";
+        }
+    }
+}
+
+<style>
+    .bracket-round {
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        justify-content: center;
+    }
+
+    .d-flex.justify-content-between>.bracket-round {
+        margin-right: 450px;
+        /* Adjust the right margin to control spacing between rounds */
+        flex: 0 1 auto;
+        /* Adjust the flex-grow, flex-shrink, and flex-basis values as needed */
+        width: auto;
+        /* Adjust the width to control how much space each round takes up */
+    }
+
+    .bracket-container {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .round {
+        margin: 0 20px;
+    }
+
+    .finals-round {
+        margin: 0 200px;
+    }
+
+    .bracket-match {
+        padding: 10px;
+        position: relative;
+    }
+
+
+    .round:last-child .bracket-match::after {
+        display: none;
+    }
+
+    .bracket-match .mud-card {
+        min-height: 150px;
+        /* Adjust based on your content */
+        min-width: 200px;
+        /* Adjust based on your content */
+        height: 150px;
+        /* Ensures a fixed height */
+        width: 200px;
+        /* Ensures a fixed width */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        /* Distributes space around items inside the card */
+    }
+</style>
