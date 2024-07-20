@@ -46,6 +46,5 @@ namespace BeybladeTournamentManager.ApiCalls.Challonge
             
             _client = new ChallongeClient(new HttpClient(), _creds);
         }
-
     }
 }

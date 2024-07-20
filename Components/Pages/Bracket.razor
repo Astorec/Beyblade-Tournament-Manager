@@ -21,6 +21,7 @@
             <MudGrid>
                 <MudItem xs="12">
                     <div class="d-flex justify-content-between"> <!-- Flex container for rounds -->
+
                         @foreach (var roundGroup in matches.GroupBy(m => m.Round).OrderBy(g => g.Key))
                         {
                             <div class="round"> <!-- Each round is a flex column -->
@@ -54,6 +55,8 @@
                                 }
                             </div>
                         }
+
+
                     </div>
                 </MudItem>
 
@@ -65,13 +68,18 @@
                             {
                                 <div class="finals-round">
                                     <!-- Each round in the tournament -->
-                                    @if (roundGroup.Key == 2)
+                                    @if (finalsMatches.Count - roundGroup.Key == 1)
                                     {
                                         <MudText Typo="Typo.h6" Class="my-2">Finals</MudText>
                                     }
+                                    else if (finalsMatches.Count - roundGroup.Key == 2)
+                                    {
+                                        
+                                        <MudText Typo="Typo.h6" Class="my-2">Semi-Finals</MudText>
+                                    }
                                     else
                                     {
-                                        <MudText Typo="Typo.h6" Class="my-2">Semi-Finals</MudText>
+                                        <MudText Typo="Typo.h6" Class="my-2">Round: @roundGroup.Key</MudText>
                                     }
 
                                     @foreach (var match in roundGroup)
