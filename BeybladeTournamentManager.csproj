@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Challonge-DotNet" Version="3.0.1" />
+    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.68.0.3476" />
+    <PackageReference Include="MudBlazor" Version="7.3.0" />
+  </ItemGroup>
+
+</Project>

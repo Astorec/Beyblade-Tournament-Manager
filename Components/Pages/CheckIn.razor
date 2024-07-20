@@ -1,0 +1,53 @@
+@using BeybladeTournamentManager.ApiCalls.Challonge
+@using BeybladeTournamentManager.ApiCalls.Challonge.Data
+@using Challonge.Api
+@using Challonge.Objects
+@inject IAutentication _challongeAuth
+
+@page "/"
+<MudPaper class="d-flex mt-2" Width="100%">
+    <MudContainer MaxWidth="MaxWidth.Medium">
+            <MudTable T="Player" Items="@players">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Region</MudTh>
+                    <MudTh>Check-In</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Name</MudTd>
+                    <MudTd>@context.Region</MudTd>
+                    <MudTd>
+                        <MudSwitch T="bool" @bind-Checked="@context.CheckInState" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+
+    </MudContainer>
+</MudPaper>
+
+
+@code {
+    ChallongeClient _client;
+    private MudTable<Player> _table;
+    List<Player> players = new List<Player>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (_challongeAuth.GetClient() != null)
+        {
+            _client = _challongeAuth.GetClient();
+
+            var participants = await _client.GetParticipantsAsync("UniqueClashTB");
+            List<Participant> participantsList = participants.ToList();
+            foreach (var participant in participantsList)
+            {
+                players.Add(new Player
+                    {
+                        Name = participant.Name,
+                        Region = "",
+                        CheckInState = false
+                    });
+            }
+        }
+    }
+}

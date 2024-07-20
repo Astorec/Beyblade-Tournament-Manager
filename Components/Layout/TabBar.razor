@@ -1,0 +1,76 @@
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<MudTabs Outlined="false" Centered="true" Color="Color.Primary" @ref="tabs">
+    <MudTabPanel Text="Check-In" @ref="checkInTab" Icon="@Icons.Material.Filled.FactCheck"
+        OnClick="@(async () => await NavigateTo("/"))" />
+    <MudTabPanel Text="Bracket" @ref="bracketTab" Icon="@Icons.Material.Filled.SportsEsports"
+        OnClick="@(async () => await NavigateTo("/Bracket"))" />
+    <MudTabPanel Text="Leaderboard" @ref="leaderboardTab" Icon="@Icons.Material.Filled.Leaderboard"
+        OnClick="@(async () => await NavigateTo("/Leaderboard"))" />
+    <MudTabPanel Text="Settings" @ref="settingsTab" Icon="@Icons.Material.Filled.Settings"
+        OnClick="@(async () => await NavigateTo("/Settings"))" />
+</MudTabs>
+
+@code {
+
+    MudTabs tabs;
+    MudTabPanel checkInTab;
+    MudTabPanel bracketTab;
+    MudTabPanel leaderboardTab;
+    MudTabPanel settingsTab;
+    bool loaded = false;
+
+    private async Task NavigateTo(string url)
+    {
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "lastSelectedTab", url);
+        NavigationManager.NavigateTo(url);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var lastSelectedTab = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "lastSelectedTab");
+          
+            if(!loaded)
+            {
+                await NavigateTo("/");
+                tabs.ActivatePanel(checkInTab);
+            }
+            else
+            {
+                loaded = true;
+            }
+            if (!string.IsNullOrEmpty(lastSelectedTab))
+            {
+                NavigationManager?.NavigateTo(lastSelectedTab);
+                Console.WriteLine("hit");
+                if (tabs != null)
+                {
+                    Console.WriteLine(lastSelectedTab);
+                    if (lastSelectedTab == "/")
+                    {
+                        await NavigateTo("/");
+                        tabs.ActivatePanel(checkInTab);
+                    }
+                    else if (lastSelectedTab == "/Bracket")
+                    {
+                        await NavigateTo("/Bracket");
+                        tabs.ActivatePanel(bracketTab);
+                    }
+                    else if (lastSelectedTab == "/Leaderboard")
+                    {
+                        await NavigateTo("/Leaderboard");
+                        tabs.ActivatePanel(leaderboardTab);
+                    }
+                    else if (lastSelectedTab == "/Settings")
+                    {
+                        await NavigateTo("/Settings");
+                        tabs.ActivatePanel(settingsTab);
+                    }
+                }
+            }
+        }
+    }
+}

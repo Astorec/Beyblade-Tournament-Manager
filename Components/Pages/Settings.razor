@@ -1,0 +1,65 @@
+@page "/settings"
+@using BeybladeTournamentManager.ApiCalls.Challonge
+@using BeybladeTournamentManager.Config
+@using Challonge.Api
+@inject IAutentication _challongeAuth
+
+<MudPaper class="mt-2" Width="100%">
+    <MudContainer Fixed="true">
+        <MudGrid class="d-flex justify-center">
+            <MudItem xs="12" sm="6"> 
+                <MudCard>
+                    <MudCardHeader>
+                        Challonge Settings
+                    </MudCardHeader>
+                </MudCard>
+                <MudPaper>
+                    <div Class="d-inline-flex pa-2">
+                        <MudTextField Label="Challonge Username" @bind-Value="@CUsername" />
+                    </div>
+                    <div Class="d-inline-flex pa-2">
+
+                        <MudTextField Label="Challonge API Key" @bind-Value="@CApiKey" />
+                    </div>
+                </MudPaper>
+                <div Class="d-flex flex-wrap">
+
+                    <MudButton OnClick="SaveSettings">Save</MudButton>
+                </div>
+
+
+            </MudItem>
+        </MudGrid>
+
+
+    </MudContainer>
+</MudPaper>
+
+
+@code {
+    public string CApiKey { get; set; }
+    public string CUsername { get; set; }
+    ChallongeClient _client;
+    InputType PasswordInput = InputType.Password;
+    AppSettings currentSettings;
+
+    async Task SaveSettings()
+    {
+        AppSettings settings = new AppSettings
+            {
+                ChallongeAPIKey = CApiKey,
+                ChallongeUsername = CUsername
+            };
+
+        _challongeAuth.SaveSettings(settings);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (_challongeAuth.GetClient() != null)
+        {
+            _client = _challongeAuth.GetClient();
+        }
+    }
+
+}
