@@ -42,14 +42,22 @@
                                     else
                                     {
                                         <div class="bracket-match"> <!-- Each match in the round -->
-                                            <MudCard>
-                                                <MudText>@(GetPlayer(match, match.Player1Id.Value).Result) - @string.Join(", ",
-                                    match.Scores.Select(x =>
-                                    x.PlayerOneScore))</MudText>
-                                                <MudText>@(GetPlayer(match, match.Player2Id.Value).Result) - @string.Join(", ",
-                                    match.Scores.Select(x =>
-                                    x.PlayerTwoScore))</MudText>
+                                            <MudCard Elevation="4" class="rounded-pill mud-theme-primary">
+                                                <MudCardContent Class="center-content ">
+                                                    <MudPaper class="d-flex flex-column flex-grow-1 gap-3 mud-theme-primary" Elevation="0">
+                                                        <MudText>@(GetPlayer(match, match.Player1Id.Value).Result) - @string.Join(", ",
+                                            match.Scores.Select(x => x.PlayerOneScore))</MudText>
+                                                        <MudText>@(GetPlayer(match, match.Player2Id.Value).Result) - @string.Join(", ",
+                                            match.Scores.Select(x => x.PlayerTwoScore))</MudText>
+                                                    </MudPaper>
+                                                    <MudPaper class="d-flex align-content-end mud-theme-primary" Elevation="0">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                            OnClick="@(() => canAddMatch = !canAddMatch)" />
+                                                    </MudPaper>
+                                                </MudCardContent>
+
                                             </MudCard>
+
                                         </div>
                                     }
                                 }
@@ -74,7 +82,7 @@
                                     }
                                     else if (finalsMatches.Count - roundGroup.Key == 2)
                                     {
-                                        
+
                                         <MudText Typo="Typo.h6" Class="my-2">Semi-Finals</MudText>
                                     }
                                     else
@@ -85,12 +93,22 @@
                                     @foreach (var match in roundGroup)
                                     {
                                         <div class="bracket-match"> <!-- Each match in the round -->
-                                            <MudCard>
-                                                <MudText>@(GetPlayer(match, match.Player1Id.Value).Result) - @string.Join(", ",
-                                    match.Scores.Select(x => x.PlayerOneScore))</MudText>
-                                                <MudText>@(GetPlayer(match, match.Player2Id.Value).Result) - @string.Join(", ",
-                                    match.Scores.Select(x => x.PlayerTwoScore))</MudText>
+                                            <MudCard Elevation="4" class="rounded-pill mud-theme-secondary">
+                                                <MudCardContent Class="center-content">
+                                                    <MudPaper class="d-flex flex-column flex-grow-1 gap-4 mud-theme-secondary" Elevation="0">
+                                                        <MudText>@(GetPlayer(match, match.Player1Id.Value).Result) - @string.Join(", ",
+                                            match.Scores.Select(x => x.PlayerOneScore))</MudText>
+                                                        <MudText>@(GetPlayer(match, match.Player2Id.Value).Result) - @string.Join(", ",
+                                            match.Scores.Select(x => x.PlayerTwoScore))</MudText>
+                                                    </MudPaper>
+                                                    <MudPaper class="d-flex justify-end align-content-end mud-theme-secondary" Elevation="0">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                            OnClick="@(() => canAddMatch = !canAddMatch)" />
+                                                    </MudPaper>
+                                                </MudCardContent>
+
                                             </MudCard>
+
                                         </div>
                                     }
                                 </div>
@@ -225,11 +243,21 @@
         /* Adjust based on your content */
         height: 150px;
         /* Ensures a fixed height */
-        width: 200px;
+        width: 300px;
         /* Ensures a fixed width */
         display: flex;
         flex-direction: column;
         justify-content: space-around;
         /* Distributes space around items inside the card */
+    }
+
+    .center-content {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        /* For text alignment if flexbox doesn't cover your needs */
+        height: 100%;
+        /* Ensure it takes full height of its container */
     }
 </style>
