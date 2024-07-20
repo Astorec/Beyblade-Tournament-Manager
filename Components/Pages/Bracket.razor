@@ -4,6 +4,9 @@
 @using Challonge.Api
 @using Challonge.Objects
 @inject IAutentication _challongeAuth
+@inject IMatches _matches
+@inject IParticipants _participants
+@inject ITournamentInfo _tournamentInfo
 
 <MudPaper>
     <MudContainer>
@@ -116,10 +119,10 @@
 
         if (_client != null)
         {
-            tournament = await _client.GetTournamentByUrlAsync(tournamentUrl);
-            matches = (await _client.GetMatchesAsync(tournamentUrl)).ToList();
-            participants = (await _client.GetParticipantsAsync(tournamentUrl)).ToList();
+            matches = await _matches.GetMatches(tournamentUrl);
+            participants = await _participants.GetParticipants(tournamentUrl);
 
+            tournament = await _tournamentInfo.GetTournament(tournamentUrl);
             foreach (var participant in participants)
             {
                 playerNames.Add(participant.Id, await GetPlayerName(participant.Id));
@@ -135,7 +138,7 @@
     {
         try
         {
-            var participant = await _client.GetParticipantAsync(tournamentUrl, pid.Value);
+            var participant = await _participants.GetParticipantById(tournamentUrl, Convert.ToInt32(pid.Value));
             return participant.Name;
         }
         catch (Exception ex)
