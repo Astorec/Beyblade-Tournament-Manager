@@ -2,25 +2,42 @@
 @using BeybladeTournamentManager.ApiCalls.Challonge.Data
 @using Challonge.Api
 @using Challonge.Objects
+@using System.Text.RegularExpressions
 @inject IAutentication _challongeAuth
 
 @page "/"
+<MudPaper class="d-flex flex-coloumn justify-center gap-3" Elevation="0">
+    <div class="d-flex flex-row gap-2">
+        <MudText Typo="Typo.h4">Tournament URL</MudText>
+        <MudTextField @bind-Value="_tournamentUrl" />
+    </div>
+    <div>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+        OnClick="@(async () => { await GetParticipentsViaURL(); })">
+        OK</MudButton>
+    </div>
+
+</MudPaper>
 <MudPaper class="d-flex mt-2" Width="100%">
     <MudContainer MaxWidth="MaxWidth.Medium">
-            <MudTable T="Player" Items="@players">
-                <HeaderContent>
-                    <MudTh>Name</MudTh>
-                    <MudTh>Region</MudTh>
-                    <MudTh>Check-In</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>@context.Name</MudTd>
-                    <MudTd>@context.Region</MudTd>
-                    <MudTd>
-                        <MudSwitch T="bool" @bind-Checked="@context.CheckInState" />
-                    </MudTd>
-                </RowTemplate>
-            </MudTable>
+        <MudTable T="Player" Items="@players">
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Region</MudTh>
+                <MudTh>Check-In</MudTh>
+                <MudTh>Check-In Time</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Name</MudTd>
+                <MudTd>@context.Region</MudTd>
+                <MudTd>
+                    <MudSwitch T="bool" Value="@context.CheckInState" @onclick="@(e => OnCheckInStateChanged(context))" Color="Color.Primary"/>
+                </MudTd>
+                <MudTd>
+                    <MudText>@context.CheckInTime</MudText>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
 
     </MudContainer>
 </MudPaper>
@@ -30,6 +47,7 @@
     ChallongeClient? _client;
     private MudTable<Player>? _table;
     List<Player> players = new List<Player>();
+    private string _tournamentUrl = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -37,17 +55,119 @@
         {
             _client = _challongeAuth.GetClient();
 
-            var participants = await _client.GetParticipantsAsync("int7et65");
-            List<Participant> participantsList = participants.ToList();
-            foreach (var participant in participantsList)
+            var url = _challongeAuth.GetSettings().CurrentTournament;
+            Console.WriteLine("Current URL: " + url);
+            if (url != null && url != "")
             {
-                players.Add(new Player
+                _tournamentUrl = url;
+                var participants = await _client.GetParticipantsAsync(GetTournamentCode(_tournamentUrl));
+
+                if (participants.Count() == 0)
+                {
+                    return;
+                }
+                List<Participant> participantsList = participants.ToList();
+                foreach (var participant in participantsList)
+                {
+                    Console.WriteLine($"ID: {participant.Id} Name: {participant.Name}, CheckedIn: {participant.CheckedIn}, CheckedInAt: {participant.CheckedInAt}");
+                    players.Add(new Player
+                        {
+                            Name = participant.Name,
+                            Region = "",
+                            ChallongeId = participant.Id,
+                            CheckInState = participant.CheckedIn,
+                            CheckInTime = participant.CheckedInAt
+                        });                 
+                }
+                StateHasChanged();
+                   Console.WriteLine($"Name: {players[0].Name}, CheckedIn: {players[0].CheckInState}, CheckedInAt: {players[0].CheckInTime}");
+            }
+
+        }
+    }
+
+    string GetTournamentCode(string url)
+    {
+        string pattern = @"(?<=\.com/).*$";
+
+        return Regex.Match(url, pattern).Value;
+    }
+
+    public async Task GetParticipentsViaURL()
+    {
+        if (_tournamentUrl != null && _tournamentUrl != "")
+        {
+            players.Clear();
+            var url = GetTournamentCode(_tournamentUrl);
+            Console.WriteLine(url);
+
+            try
+            {
+                var participants = await _client.GetParticipantsAsync(url);
+                List<Participant> participantsList = participants.ToList();
+
+                if (participantsList.Count == 0)
+                {
+                    Console.WriteLine("No participants found");
+                    return;
+                }
+                foreach (var participant in participantsList)
+                {
+                    players.Add(new Player
                     {
                         Name = participant.Name,
                         Region = "",
-                        CheckInState = false
+                        ChallongeId = participant.Id,
+                        CheckInState = participant.CheckedIn,
+                        CheckInTime = participant.CheckedInAt
                     });
+                }
+                var currentSettings = _challongeAuth.GetSettings();
+                currentSettings.CurrentTournament = _tournamentUrl;
+                _challongeAuth.SaveSettings(currentSettings);
+                StateHasChanged();
             }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+        }
+    }
+    public bool HandleCheckIn(bool isCheckedIn)
+    {
+        return isCheckedIn;
+    }
+    private async Task OnCheckInStateChanged(Player context)
+    {
+    try
+        {
+            var participant = await _client.GetParticipantAsync(GetTournamentCode(_tournamentUrl), context.ChallongeId);
+
+            await _client.CheckInParticipantAsync(participant);
+            
+
+            // Update the player list
+            var index = players.FindIndex(x => x.ChallongeId == context.ChallongeId);
+
+            // if the check in true update time
+            if (context.CheckInState)
+            {
+
+                players[index].CheckInState = true;
+                players[index].CheckInTime = DateTime.Now;
+            }
+            else
+            {
+                players[index].CheckInState = false;
+                players[index].CheckInTime = null;
+            }
+            
+            StateHasChanged();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
         }
     }
 }

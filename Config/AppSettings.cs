@@ -7,5 +7,6 @@ namespace BeybladeTournamentManager.Config
         public string? GoogleAppName {get; set;}
         public List<string>? SheetID {get; set;}
         public List<string>? SheetNames {get; set;}
+        public string? CurrentTournament {get; set;}
     }
 }

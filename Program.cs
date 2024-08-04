@@ -22,7 +22,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddMudServices();
 builder.Services.AddScoped<IAutentication, Authentication>();
 builder.Services.AddScoped<IMatches, Matches>();
-builder.Services.AddScoped<ITournamentInfo, TournamentInfo>();
+builder.Services.AddScoped<ITournamentManager, TournamentManager>();
 builder.Services.AddScoped<IParticipants, Participants>();
 
 var app = builder.Build();
