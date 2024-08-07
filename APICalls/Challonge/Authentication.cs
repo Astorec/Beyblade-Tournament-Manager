@@ -23,6 +23,8 @@ namespace BeybladeTournamentManager.ApiCalls.Challonge
                 _creds = new ChallongeCredentials(settings.ChallongeUsername, settings.ChallongeAPIKey);
                 _client = new ChallongeClient(new HttpClient(), _creds);
             }
+
+            _settings = LoadSettings();
         }
 
         public ChallongeClient GetClient()
@@ -32,10 +34,6 @@ namespace BeybladeTournamentManager.ApiCalls.Challonge
 
         public AppSettings GetSettings()
         {
-
-            _settings = LoadSettings();
-
-
             return _settings;
         }
 

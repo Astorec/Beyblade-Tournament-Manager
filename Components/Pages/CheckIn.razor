@@ -95,9 +95,14 @@
 
     public async Task GetParticipentsViaURL()
     {
+        if(_client == null)
+        {
+            return;
+        }
+        
         if (_tournamentUrl != null && _tournamentUrl != "")
         {
-            players.Clear();
+             players.Clear();
             var url = GetTournamentCode(_tournamentUrl);
             Console.WriteLine(url);
 
@@ -140,27 +145,33 @@
     }
     private async Task OnCheckInStateChanged(Player context)
     {
-    try
+        if(_client == null)
+        {
+            return;
+        }
+
+
+        try
         {
             var participant = await _client.GetParticipantAsync(GetTournamentCode(_tournamentUrl), context.ChallongeId);
-
-            await _client.CheckInParticipantAsync(participant);
-            
 
             // Update the player list
             var index = players.FindIndex(x => x.ChallongeId == context.ChallongeId);
 
             // if the check in true update time
-            if (context.CheckInState)
+            if (!context.CheckInState)
             {
 
                 players[index].CheckInState = true;
                 players[index].CheckInTime = DateTime.Now;
+                await _client.CheckInParticipantAsync(participant);
             }
             else
             {
                 players[index].CheckInState = false;
                 players[index].CheckInTime = null;
+
+             await _client.UndoCheckInParticipantAsync(participant);
             }
             
             StateHasChanged();
