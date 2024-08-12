@@ -1,9 +1,11 @@
 @using BeybladeTournamentManager.ApiCalls.Challonge
 @using BeybladeTournamentManager.ApiCalls.Challonge.Data
+@using BeybladeTournamentManager.Helpers
 @using Challonge.Api
 @using Challonge.Objects
 @using System.Text.RegularExpressions
 @inject IAutentication _challongeAuth
+@inject IPlayerHelper _playerHelper
 
 @page "/"
 <MudPaper class="d-flex flex-coloumn justify-center gap-3" Elevation="0">
@@ -16,8 +18,8 @@
         OnClick="@(async () => { await GetParticipentsViaURL(); })">
         OK</MudButton>
     </div>
-
 </MudPaper>
+
 <MudPaper class="d-flex mt-2" Width="100%">
     <MudContainer MaxWidth="MaxWidth.Medium">
         <MudTable T="Player" Items="@players">
@@ -29,7 +31,7 @@
             </HeaderContent>
             <RowTemplate>
                 <MudTd>@context.Name</MudTd>
-                <MudTd>@context.Region</MudTd>
+                <MudTd>@context.region</MudTd>
                 <MudTd>
                     <MudSwitch T="bool" Value="@context.CheckInState" @onclick="@(e => OnCheckInStateChanged(context))" Color="Color.Primary"/>
                 </MudTd>
@@ -56,7 +58,6 @@
             _client = _challongeAuth.GetClient();
 
             var url = _challongeAuth.GetSettings().CurrentTournament;
-            Console.WriteLine("Current URL: " + url);
             if (url != null && url != "")
             {
                 _tournamentUrl = url;
@@ -67,20 +68,16 @@
                     return;
                 }
                 List<Participant> participantsList = participants.ToList();
-                foreach (var participant in participantsList)
-                {
-                    Console.WriteLine($"ID: {participant.Id} Name: {participant.Name}, CheckedIn: {participant.CheckedIn}, CheckedInAt: {participant.CheckedInAt}");
-                    players.Add(new Player
-                        {
-                            Name = participant.Name,
-                            Region = "",
-                            ChallongeId = participant.Id,
-                            CheckInState = participant.CheckedIn,
-                            CheckInTime = participant.CheckedInAt
-                        });                 
-                }
-                StateHasChanged();
-                   Console.WriteLine($"Name: {players[0].Name}, CheckedIn: {players[0].CheckInState}, CheckedInAt: {players[0].CheckInTime}");
+                    
+                    // Prevent doubling up the list on switching tabs
+                _playerHelper.ClearPlayers();
+                // Add the new Players to the list
+                AddPlayerFromParticipant(participantsList);
+
+                
+                players = _playerHelper.GetCurrentPlayers();
+
+                StateHasChanged();                  
             }
 
         }
@@ -102,10 +99,11 @@
         
         if (_tournamentUrl != null && _tournamentUrl != "")
         {
-             players.Clear();
-            var url = GetTournamentCode(_tournamentUrl);
-            Console.WriteLine(url);
+            // Clear the current list
+            players.Clear();
+            _playerHelper.ClearPlayers();
 
+            var url = GetTournamentCode(_tournamentUrl);
             try
             {
                 var participants = await _client.GetParticipantsAsync(url);
@@ -113,20 +111,13 @@
 
                 if (participantsList.Count == 0)
                 {
-                    Console.WriteLine("No participants found");
                     return;
                 }
-                foreach (var participant in participantsList)
-                {
-                    players.Add(new Player
-                    {
-                        Name = participant.Name,
-                        Region = "",
-                        ChallongeId = participant.Id,
-                        CheckInState = participant.CheckedIn,
-                        CheckInTime = participant.CheckedInAt
-                    });
-                }
+
+                // Add the new Players to the list
+                AddPlayerFromParticipant(participantsList);
+                players = _playerHelper.GetCurrentPlayers();
+
                 var currentSettings = _challongeAuth.GetSettings();
                 currentSettings.CurrentTournament = _tournamentUrl;
                 _challongeAuth.SaveSettings(currentSettings);
@@ -139,6 +130,25 @@
 
         }
     }
+
+    void AddPlayerFromParticipant(List<Participant> participants)
+    {
+
+        foreach(var participant in participants)
+        {
+            Player p = new Player
+            {
+                Name = participant.Name,
+                region = "",
+                ChallongeId = participant.Id,
+                CheckInState = participant.CheckedIn,
+                CheckInTime = participant.CheckedInAt
+            };
+
+            _playerHelper.AddPlayer(p, "Combined Uk leaderboard");
+        }
+    }
+
     public bool HandleCheckIn(bool isCheckedIn)
     {
         return isCheckedIn;

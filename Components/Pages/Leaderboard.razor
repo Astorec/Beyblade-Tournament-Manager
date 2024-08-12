@@ -1,4 +1,90 @@
 @page "/Leaderboard"
-<MudText>
-    Leaderboard Page
-</MudText>
+@using BeybladeTournamentManager.ApiCalls.Challonge.Data
+@using BeybladeTournamentManager.ApiCalls.Google
+@using BeybladeTournamentManager.Helpers
+
+@inject IGoogleService _googleService
+@inject IPlayerHelper _playerHelper
+<MudPaper class="d-flex flex-coloumn justify-center gap-3" Elevation="0">
+    <div class="d-flex flex-row flex-grow-1">
+        <MudPaper Class="flex-grow-1 py-8" Width="64px" Elevation="0" />
+        <MudPaper Class="d-flex  justify-center flex-grow-1 py-8 mt-1" Width="10%%" Elevation="0">
+            <MudPaper Class="flex-grow py-8 mt-1 align-content-center" Width="23%" Elevation="0">
+                <MudText>Select Leaderboard </MudText>
+            </MudPaper>
+            <MudPaper Class="flex-grow-1 py-8 mt-1" Width="90%" Elevation="0">
+                <MudSelect T="string" Value="selectedLeaderboard" SelectedValues="leaderboards"
+                    ValueChanged="value => OnLeaderboardChanged(value)">
+                    @foreach (var item in leaderboards)
+                    {
+                        <MudSelectItem T="string" Value="@item">@item</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudPaper>
+
+        </MudPaper>
+
+        <MudPaper Class="flex-grow-1 py-8" Width="64px" Elevation="0" />
+    </div>
+
+
+</MudPaper>
+
+<MudPaper class="d-flex mt-2" Width="100%">
+    <MudContainer MaxWidth="MaxWidth.Medium">
+        <MudTable T="Player" Items="@players">
+            <HeaderContent>
+                <MudTh>Rank</MudTh>
+                <MudTh>Name</MudTh>
+                <MudTh>Points</MudTh>
+                <MudTh>W/L</MudTh>
+                <MudTh>First</MudTh>
+                <MudTh>Second</MudTh>
+                <MudTh>Third</MudTh>
+                <MudTh>Region</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTh>@context.LeaderboardRank</MudTh>
+                <MudTh>@context.Name</MudTh>
+                <MudTh>@context.Points</MudTh>
+                <MudTh>@context.Wins / @context.Losses</MudTh>
+                <MudTh>@context.first</MudTh>
+                <MudTh>@context.second</MudTh>
+                <MudTh>@context.third</MudTh>
+                <MudTh>@context.region</MudTh>
+            </RowTemplate>
+        </MudTable>
+    </MudContainer>
+</MudPaper>
+
+@code
+{
+    public List<Player> players = new List<Player>();
+    private IEnumerable<string> leaderboards = new List<string>();
+    private string selectedLeaderboard;
+    bool firstInit = true;
+    protected override async Task OnInitializedAsync()
+    {
+        if (firstInit)
+        {
+            players = _playerHelper.GetLeaderboard("Combined Uk leaderboard").Result;
+
+            var sheetsList = _playerHelper.GetSheetsList();
+            leaderboards = sheetsList.Select(s => s.Properties.Title).ToList();
+
+
+        }
+    }
+
+    private async Task OnLeaderboardChanged(string value)
+    {
+        selectedLeaderboard = value;
+
+        // Await the asynchronous method to avoid blocking the main thread
+        var leaderboard = await _playerHelper.GetLeaderboard(selectedLeaderboard);
+
+        // Ensure the list is sorted by LeaderboardRank
+       players = leaderboard.OrderBy(p => int.Parse(p.LeaderboardRank)).ToList();
+    }
+
+}

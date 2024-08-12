@@ -1,7 +1,10 @@
 using System.Text.Json;
 using BeybladeTournamentManager.ApiCalls.Challonge;
+using BeybladeTournamentManager.ApiCalls.Challonge.Data;
+using BeybladeTournamentManager.ApiCalls.Google;
 using BeybladeTournamentManager.Components;
 using BeybladeTournamentManager.Config;
+using BeybladeTournamentManager.Helpers;
 using MudBlazor.Services;
 
 
@@ -21,6 +24,8 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddMudServices();
 builder.Services.AddScoped<IAutentication, Authentication>();
+builder.Services.AddScoped<IPlayerHelper, PlayerHelper>();
+builder.Services.AddScoped<IGoogleService, GoogleService>();
 builder.Services.AddScoped<IMatches, Matches>();
 builder.Services.AddScoped<ITournamentManager, TournamentManager>();
 builder.Services.AddScoped<IParticipants, Participants>();
@@ -44,8 +49,7 @@ if (!File.Exists(configFilePath))
         ChallongeAPIKey = "",
         ChallongeUsername = "",
         GoogleAppName = "",
-        SheetID = new List<string>(),
-        SheetNames = new List<string>()
+        SheetID = ""
     };
 
     var settingsJson = JsonSerializer.Serialize(defaultSettings, new JsonSerializerOptions { WriteIndented = true });

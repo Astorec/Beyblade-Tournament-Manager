@@ -1,4 +1,3 @@
-using BeybladeTournamentManager.Components;
 using BeybladeTournamentManager.Config;
 using Challonge.Api;
 

@@ -26,33 +26,37 @@
         {
             <MudGrid>
                 <MudItem xs="12">
-                    <div class="d-flex justify-content-between"> <!-- Flex container for rounds -->
+                    <div class="d-flex justify-content-between align-content-center"> <!-- Flex container for rounds -->
                         @foreach (var roundGroup in matches.GroupBy(m => m.Round).OrderBy(g => g.Key))
                         {
                             
-                            <div class="round"> <!-- Each round is a flex column -->
+                        <div class="round"> <!-- Each round is a flex column -->
 
-                                    @if (matches.Count - roundGroup.Key == rounds - 1)
-                                    {
+                        @if (roundGroup.Any(m => m.Player1Id != null || m.Player2Id != null))
+                            {
+                                @if (roundGroup.Key == rounds - 1)
+                                {                                           
+                                    <!-- if there are no players in the finals, don't display text -->
 
-                                        <MudText Typo="Typo.h6" Class="my-2">Finals</MudText>
-                                    }
-                                    else if (matches.Count - roundGroup.Key == rounds)
-                                    {
+                                    <MudText Typo="Typo.h6" Class="my-2">Semi-Finals</MudText>
+                                }
+                                else if (roundGroup.Key == rounds)
+                                {
                                        
-                                        <MudText Typo="Typo.h6" Class="my-2">Semi-Finals</MudText>
-                                    }
-                                    else
-                                    {
-
-                                        <MudText Typo="Typo.h6" Class="my-2">Round: @roundGroup.Key</MudText>
-                                    }
+                                    <MudText Typo="Typo.h6" Class="my-2">Finals</MudText>
+                                }
+                                else if(roundGroup.Key < rounds - 1)
+                                {
+                                    <MudText Typo="Typo.h6" Class="my-2">Round: @roundGroup.Key</MudText>
+                                }
+                            }
+                           
 
                                 @foreach (var match in roundGroup)
                                 {
                                     if(match.State != MatchState.Pending)
                                     {
-                                        if(match.Round < rounds - 2)
+                                        if(match.Round < rounds - 1)
                                         {                                     
                                             <div class="bracket-match"> <!-- Each match in the round -->
                                                 <MudCard Elevation="4" class="d-flex rounded-pill mud-theme-primary">
@@ -60,21 +64,17 @@
                                                         <div class="d-flex justify-center">
                                                             <div class="d-flex flex-column mr-8 mb-7" Width="70%" Elevation="0">
                                                                 <div class="d-flex flex-row pl-8 align-center">
-                                                                    <div class="d-flex mt-6 justify-center" >
-                                                                        
-                                                                        
-                                                                              <MudText class="d-flex align-center align-content-center justify-center ml-2" style="width: 50%;">@(GetPlayer(match, match.Player1Id.Value).Result)</MudText>
-                                                                        
-                                                                      
+                                                                    <div class="d-flex mt-6 justify-center" >      
+                                                                        <MudText class="d-flex align-center align-content-center justify-center ml-2" style="width: 50%;">@(GetPlayer(match, match.Player1Id.Value).Result)</MudText>
                                                                     </div>
                                                                     <div class="d-flex mt-6 justify-center flex-grow-1 flex-gap-4 ml-2">
                                                                         @if(match.State == MatchState.Open)
                                                                         {
-                                                                            <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" Value="@GetScore(match, 1)" Variant="Variant.Outlined"/>
+                                                                            <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" @bind-Value="player1Scores[match.Id]" Variant="Variant.Outlined"/>
                                                                         }
                                                                         else if(match.State == MatchState.Complete)
                                                                         {
-                                                                                <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" Value="@GetScore(match, 1)" Variant="Variant.Outlined" Disabled="true"/>
+                                                                            <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" @bind-Value="player1Scores[match.Id]" Variant="Variant.Outlined" Disabled="true"/>
                                                                         }
                                                                        
                                                                     </div>
@@ -82,15 +82,30 @@
                                                                 <div class="d-flex flex-row pl-8 align-center">
                                                                     <div class="d-flex mt-6 justify-center">
                                                                         <MudText class="d-flex align-center align-content-center justify-center ml-2" style="width: 50%;">@(GetPlayer(match, match.Player2Id.Value).Result)</MudText>
+                                                                    
                                                                     </div>
                                                                     <div class="d-flex mt-6 justify-center flex-grow-1 flex-gap-4 ml-2">
-                                                                        <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" Value="@GetScore(match, 2)" Variant="Variant.Outlined"/>
+                                                                         @if(match.State == MatchState.Open)
+                                                                        {
+                                                                            <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" @bind-Value="player2Scores[match.Id]"Variant="Variant.Outlined"/>
+                                                                        }
+                                                                        else if(match.State == MatchState.Complete)
+                                                                        {
+                                                                            <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" @bind-Value="player2Scores[match.Id]" Variant="Variant.Outlined" Disabled="true"/>
+                                                                        }
                                                                     </div>
                                                                 </div>                                                        
                                                             </div>
+                                                            @if(match.State != MatchState.Complete)
+                                                            {
+                                                                <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success" @onclick="() => UpdateScores(match)"/>
+                                                            }
+                                                            else{
+                                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" @onclick="() => ReopenMatch(match)"/>
+                                                            }
                                                         </div>
                                                     </MudCardContent>
-                                                </MudCard>
+                                                </MudCard>                                            
                                             </div>
                                          }
                                         else
@@ -102,10 +117,20 @@
                                                             <div class="d-flex flex-column mr-8 mb-7" Width="70%" Elevation="0">
                                                                 <div class="d-flex flex-row pl-8 align-center">
                                                                     <div class="d-flex mt-6 justify-center">
-                                                                    <MudText class="d-flex align-center align-content-center justify-center ml-2" style="width: 50%;">@(GetPlayer(match, match.Player1Id.Value).Result)</MudText>
+                                                                        <MudText class="d-flex align-center align-content-center justify-center ml-2" style="width: 50%;">@(GetPlayer(match, match.Player1Id.Value).Result)</MudText>
                                                                     </div>
                                                                     <div class="d-flex mt-6 justify-center flex-grow-1 flex-gap-4 ml-2">
-                                                                        <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" Value="@GetScore(match, 1)" Variant="Variant.Outlined"/>
+                                                                        @if(match.State == MatchState.Open)
+                                                                        {
+                                                                            <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" @bind-Value="player1Scores[match.Id]" Variant="Variant.Outlined" OnChange="@UpdateMatchScore(match.Id, 1, player1Scores[match.Id])"/>
+                                                                           
+                                                                         
+                                                                        }
+                                                                        else if(match.State == MatchState.Complete)
+                                                                        {
+                                                                            <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" @bind-Value="player1Scores[match.Id]" Variant="Variant.Outlined" Disabled="true"/>
+                                                                        }
+                                                                       
                                                                     </div>
                                                                 </div>                                                            
                                                                 <div class="d-flex flex-row pl-8 align-center">
@@ -113,10 +138,26 @@
                                                                         <MudText class="d-flex align-center align-content-center justify-center ml-2" style="width: 50%;">@(GetPlayer(match, match.Player2Id.Value).Result)</MudText>
                                                                     </div>
                                                                     <div class="d-flex mt-6 justify-center flex-grow-1 flex-gap-4 ml-2">
-                                                                        <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" Value="@GetScore(match, 2)" Variant="Variant.Outlined"/>
+                                                                         @if(match.State == MatchState.Open)
+                                                                        {
+                                                                            <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" @bind-Value="player2Scores[match.Id]" Variant="Variant.Outlined"/>
+                                                                        }
+                                                                        else if(match.State == MatchState.Complete)
+                                                                        {
+                                                                            <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" @bind-Value="player2Scores[match.Id]"Variant="Variant.Outlined" Disabled="true"/>
+                                                                        }
                                                                     </div>
-                                                                </div>                                                        
+                                                                </div>      
+                                                                                                                  
                                                             </div>
+                                                            @match.State
+                                                                 @if(match.State != MatchState.Complete)
+                                                            {
+                                                                <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success"/>
+                                                            }
+                                                            else{
+                                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning"/>
+                                                            }
                                                         </div>
                                                     </MudCardContent>
                                                 </MudCard>
@@ -126,65 +167,6 @@
                                                                 
                                 }
                             </div>
-                        }
-                    </div>
-                </MudItem>
-
-                <MudItem xs="12">
-                    <div class="d-flex ml-n20">
-                        @if (finalsMatches.Count > 0)
-                        {
-                            @foreach (var roundGroup in finalsMatches.GroupBy(m => m.Round).OrderBy(g => g.Key))
-                            {                            
-                                <div class="finals-round">
-                                    <!-- Each round in the tournament -->
-                                    @if (finalsMatches.Count - roundGroup.Key == 1)
-                                    {
-                                        <MudText Typo="Typo.h6" Class="my-2">Finals</MudText>
-                                    }
-                                    else if (finalsMatches.Count - roundGroup.Key == 2)
-                                    {
-
-                                       <MudText Typo="Typo.h6" Class="my-2">Semi-Finals</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudText Typo="Typo.h6" Class="my-2">Round: @roundGroup.Key</MudText>
-                                    }
-
-                                    @foreach (var match in roundGroup)
-                                    {
-                                        <div class="bracket-match"> <!-- Each match in the round -->
-                                            <MudCard Elevation="4" class="d-flex rounded-pill mud-theme-secondary">
-                                                <MudCardContent>
-                                                    <div class="d-flex justify-center">
-                                                        <div class="d-flex flex-column mr-8 mb-7" Width="70%" Elevation="0">
-                                                            <div class="d-flex flex-row pl-8 align-center">
-                                                                <div class="d-flex mt-6 justify-center">
-                                                                   <MudText class="d-flex align-center align-content-center justify-center ml-2" style="width: 50%;">@(GetPlayer(match, match.Player1Id.Value).Result)</MudText>
-                                                                </div>
-                                                                <div class="d-flex mt-6 justify-center flex-grow-1 flex-gap-4 ml-2">
-                                                                    <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" Value="@GetScore(match, 1)" Variant="Variant.Outlined"/>
-                                                                </div>
-                                                            </div>                                                            
-                                                            <div class="d-flex flex-row pl-8 align-center">
-                                                                <div class="d-flex mt-6 justify-center">
-                                                                    <MudText class="d-flex align-center align-content-center justify-center ml-2" style="width: 50%;">@(GetPlayer(match, match.Player2Id.Value).Result)</MudText>
-                                                                </div>
-                                                                <div class="d-flex mt-6 justify-center flex-grow-1 flex-gap-4 ml-2">
-                                                                    <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" Value="@GetScore(match, 2)" Variant="Variant.Outlined"/>
-                                                                </div>
-                                                            </div>
-                                                        
-                                                        </div>
-                                                    </div>
-                                                </MudCardContent>
-                                            </MudCard>
-
-                                        </div>
-                                    }
-                                </div>
-                            }
                         }
                     </div>
                 </MudItem>
@@ -203,7 +185,10 @@
     Tournament tournament;
 
     private Dictionary<long, string> playerNames = new Dictionary<long, string>();
-        private Dictionary<long, MatchScores> matchScores = new Dictionary<long, MatchScores>();
+    private Dictionary<long, MatchScores> matchScores = new Dictionary<long, MatchScores>();
+    private Dictionary<long, int> player1Scores = new Dictionary<long, int>();
+    private Dictionary<long, int> player2Scores = new Dictionary<long, int>();
+
     private Dictionary<long, List<string>> matchList = new Dictionary<long, List<string>>();
     int rounds = 0;
     int player1Score = 0;
@@ -213,36 +198,88 @@
     bool finals = false;
     bool grandFinals = false;
     string tournamentUrl;
+    private Timer _timer;
 
-
-        protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync()
     {
         _client = _challongeAuth.GetClient();
         tournamentUrl = GetTournamentCode(_challongeAuth.GetSettings().CurrentTournament);
 
         if (_client != null)
         {
-            matches = await _matches.GetMatches(tournamentUrl);
-            participants = await _participants.GetParticipants(tournamentUrl);
-
-            Console.WriteLine(matches.Count);
-            foreach (var participant in participants)
-            {
-                playerNames.Add(participant.Id, await GetPlayerName(participant.Id));
-            }
-            if (matches.Any())
-            {
-                rounds = matches.Max(m => m.Round);
-            }
-            else
-            {
-                rounds = 0; // or handle the case where there are no matches
-            }
+          
+            await LoadInitalDataAsync();
             matchesLoaded = true;
-            StateHasChanged();
+            
+            await InvokeAsync(StateHasChanged);
         }
     }
 
+    private async Task LoadInitalDataAsync()
+    {
+        matches = await _matches.GetMatches(tournamentUrl);
+        participants = await _participants.GetParticipants(tournamentUrl);
+
+        foreach (var participant in participants)
+        {
+            playerNames.Add(participant.Id, await GetPlayerName(participant.Id));
+        }
+        if (matches.Any())
+        {
+            rounds = matches.Max(m => m.Round);
+
+            // For each match we are adding in a local trracker of the score for each player per match.
+            // this is so we can have a local copy of it and update it as needed. I think once we save
+            // the data we should probably call for an update and check if things have been updated on
+            // the API end and update the local copy if needed.
+            foreach(var match in matches)
+            {
+                // Add Player 1 Score if it doesn't exist otherwise update the Score
+                if(!player1Scores.ContainsKey(match.Id))
+                {
+                    player1Scores.Add(match.Id, match.Scores.Select(s => s.PlayerOneScore).FirstOrDefault());
+                }
+                else
+                {
+                    player1Scores[match.Id] = match.Scores.Select(s => s.PlayerOneScore).FirstOrDefault();
+                }
+                // Add Player 2 Score if it doesn't exist otherwise update the Score
+                if(!player2Scores.ContainsKey(match.Id))
+                {
+                    player2Scores.Add(match.Id, match.Scores.Select(s => s.PlayerTwoScore).FirstOrDefault());
+                }
+                else
+                {
+                    player2Scores[match.Id] = match.Scores.Select(s => s.PlayerTwoScore).FirstOrDefault();
+                }
+            }
+        }
+        else
+        {
+            rounds = 0; // or handle the case where there are no matches
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        // Check if the client is null
+        if (_client != null)
+        {
+            // Fetch the latest data from the API
+            matches = await _matches.GetMatches(tournamentUrl);
+
+            // Update the local state with the latest data
+            foreach (var match in matches)
+            {
+                player1Scores[match.Id] = GetScore(match, 1);
+                player2Scores[match.Id] = GetScore(match, 2);
+            }
+
+            // Trigger a state update to re-render the component
+            await InvokeAsync(StateHasChanged);
+
+        }
+    }
     public async Task<string> GetPlayerName(long? pid)
     {
         try
@@ -277,6 +314,53 @@
         }
     }
 
+    public async Task UpdateScores(Challonge.Objects.Match match)
+    {
+        // Update Scores for the match in the Local List
+        bool isTie = false;
+        var player1Score = player1Scores[match.Id];
+        var player2Score = player2Scores[match.Id];
+
+        if(player1Score == player2Score)
+        {
+            isTie = true;
+        }
+        var matchInfo = new MatchInfo(isTie);
+
+        matchInfo.Scores = new List<Score>{new Score(player1Score, player2Score)};
+
+        if(player1Score > player2Score)
+        {
+            matchInfo.WinnerId = match.Player1Id;
+        }
+        else if(player1Score < player2Score)
+        {
+            matchInfo.WinnerId = match.Player2Id;
+        }
+        else
+        {
+            matchInfo.WinnerId = null;
+        }        
+
+        await _client.UpdateMatchAsync(match, matchInfo);
+
+        await RefreshData();        
+
+        await InvokeAsync(StateHasChanged);      
+    }
+
+    public async Task ReopenMatch(Challonge.Objects.Match match)
+    {
+        await _client.ReopenMatchAsync(match);
+        var index = matches.FindIndex(m => m.Id == match.Id);
+          await RefreshData();        
+
+        var updatedMatch = await _client.GetMatchAsync(tournamentUrl, match.Id);
+        matches[index] = updatedMatch;
+
+        await InvokeAsync(StateHasChanged);      
+    }
+
     public int GetScore(Challonge.Objects.Match match, int player)
     {
         if(player == 1)
@@ -291,18 +375,18 @@
         }
     }
 
-    public void UpdateMatchScore(long matchId, int player1Score, int player2Score)
-{
-    if (matchScores.ContainsKey(matchId))
+    public async Task UpdateMatchScore(long matchId, int player, int score)
     {
-        matchScores[matchId].PlayerOneScore = player1Score;
-        matchScores[matchId].PlayerTwoScore = player2Score;
+        switch(player)
+        {
+            case 1:
+                player1Scores[matchId] = score;
+                break;
+            case 2:
+                player2Scores[matchId]  = score;
+                break;
+        }
     }
-    else
-    {
-        matchScores.Add(matchId, new MatchScores { PlayerOneScore = player1Score, PlayerTwoScore = player2Score });
-    }
-}
 
     private async Task<bool> IsWinner(long matchId, long? playerId)
     {
@@ -340,6 +424,10 @@
         return Regex.Match(url, pattern).Value;
     }
 
+     public void Dispose()
+    {
+        _timer?.Dispose();
+    }
 }
 
 <style>
@@ -377,8 +465,8 @@
         padding: 10px;
         position: relative;
         display: flex;
-        justify-content: center;
-        align-items: center;
+        justify-content: center;        
+        align-content: center;
     }
 
 

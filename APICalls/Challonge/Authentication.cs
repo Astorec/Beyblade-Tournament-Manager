@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using Challonge.Api;
 using Challonge.Objects;
 using BeybladeTournamentManager.Config;
-using BeybladeTournamentManager.Components.Pages;
 
 namespace BeybladeTournamentManager.ApiCalls.Challonge
 {
@@ -52,8 +51,7 @@ namespace BeybladeTournamentManager.ApiCalls.Challonge
                     ChallongeAPIKey = configuration["ChallongeAPIKey"],
                     ChallongeUsername = configuration["ChallongeUsername"],
                     GoogleAppName = configuration["GoogleAppName"],
-                    SheetID = configuration.GetSection("SheetID").Get<List<string>>(),
-                    SheetNames = configuration.GetSection("SheetNames").Get<List<string>>(),
+                    SheetID = configuration["SheetID"],                    
                     CurrentTournament = configuration["CurrentTournament"]
                 };
                 

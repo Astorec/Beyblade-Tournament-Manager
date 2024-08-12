@@ -38,6 +38,9 @@
 @code {
     public string CApiKey { get; set; }
     public string CUsername { get; set; }
+    public string GoogleAppName{get; set;}
+    public string GoogleSheetId{get; set;}
+    public List<string> GoogleSheetNames{get; set;}
     ChallongeClient _client;
     InputType PasswordInput = InputType.Password;
     AppSettings currentSettings;
@@ -49,7 +52,7 @@
                 ChallongeAPIKey = CApiKey,
                 ChallongeUsername = CUsername
             };
-
+        
         _challongeAuth.SaveSettings(settings);
     }
 

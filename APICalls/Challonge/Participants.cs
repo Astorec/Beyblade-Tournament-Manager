@@ -28,5 +28,7 @@ namespace BeybladeTournamentManager.ApiCalls.Challonge
         {
             return (await _client.GetParticipantsAsync(tournamentUrl)).ToList();
         }
+
+        
     }
 }
