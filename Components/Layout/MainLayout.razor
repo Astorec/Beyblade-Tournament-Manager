@@ -1,4 +1,9 @@
 ﻿@using BeybladeTournamentManager.ApiCalls.Challonge
+@using BeybladeTournamentManager.ApiCalls.Google
+@using BeybladeTournamentManager.Helpers
+
+@inject IGoogleService _googleService
+@inject IPlayerHelper _playerHelper
 @inherits LayoutComponentBase
 @inject IAutentication _challongeAuth
 <MudThemeProvider />
@@ -15,7 +20,10 @@
     </MudMainContent>
 </MudLayout>
 
-@code 
+@code
 {
-    bool _drawerOpen = true;
+    protected override async Task OnInitializedAsync()
+    {
+
+    }
 }

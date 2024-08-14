@@ -1,0 +1,82 @@
+@using System.Text.RegularExpressions
+@inject NavigationManager navManger
+
+<MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="TogglePopup">Open Via URL</MudButton>
+
+<MudPopover Open="@viewPopup" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter">
+    <MudPaper class="d-flex flex-column justify-center ma-5" Elevation="0">
+        <div class="d-flex flex-row gap-2">
+            <MudText Typo="Typo.h4">Enter URL</MudText>
+            <MudTextField @bind-Value="_tournamentUrl" />
+        </div>
+        <div class="d-flex justify-center mt-4">
+            <MudText Typo="Typo.h6">-OR-</MudText>
+        </div>
+        <div class="d-flex mt-4">
+            <MudText Typo="Typo.h6">Select from previous URLs</MudText>
+            <MudSelect T="string" Value="_selectedUrl" ValueChanged="e => OnSelected(e)" FullWidth="true">
+
+                @foreach (var url in PreviousUrls)
+                {
+                    <MudSelectItem Value="@url.Value">@url.Key</MudSelectItem>
+                }
+            </MudSelect>
+        </div>
+        <div class="d-flex flex-row justify-space-between mt-4">
+            <div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="AddUrl"> OK</MudButton>
+            </div>
+            <div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="Cancel"> Cancel</MudButton>
+            </div>
+        </div>
+
+    </MudPaper>
+
+</MudPopover>
+
+@code {
+    string _tournamentUrl = "";
+    string _selectedUrl = "";
+    bool viewPopup = false;
+
+    [Parameter]
+    public Dictionary<string, string> PreviousUrls { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnUrlSelected { get; set; }
+
+    private async Task AddUrl()
+    {
+        string urlToAdd = !string.IsNullOrEmpty(_tournamentUrl) ? _tournamentUrl : _selectedUrl;
+        if (!string.IsNullOrEmpty(urlToAdd) && urlToAdd.Contains("challonge.com"))
+        {  
+
+            Console.WriteLine($"URL Added: {urlToAdd}");
+            await OnUrlSelected.InvokeAsync(urlToAdd);
+            _tournamentUrl = string.Empty; 
+            _selectedUrl = string.Empty;
+            viewPopup = false;
+        }
+    }
+
+    private void OnSelected(string e)
+    {
+        _selectedUrl = e;
+    }
+
+
+    private void TogglePopup()
+    {
+        if (viewPopup)
+            viewPopup = false;
+        else
+            viewPopup = true;
+    }
+
+    private void Cancel()
+    {
+        viewPopup = false;
+        StateHasChanged();
+    }
+}

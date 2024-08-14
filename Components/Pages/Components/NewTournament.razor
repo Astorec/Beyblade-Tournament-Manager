@@ -1,0 +1,76 @@
+@using BeybladeTournamentManager.ApiCalls.Challonge
+@using Challonge.Api
+@using Challonge.Objects
+@inject NavigationManager navManger
+@inject IAutentication _challongeAuth
+
+<MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="TogglePopup">Create Tournament</MudButton>
+
+<MudPopover Open="@viewPopup" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter">
+    <MudPaper class="d-flex flex-column justify-center ma-5" Elevation="0">
+        <MudText>Create new Tournament</MudText>
+        <div class="d-flex flex-row gap-2">
+            <MudTextField Label="Tournament Name" @bind-Value="@tName" />
+        </div>
+        <div class="d-flex flex-row gap-2">
+            <MudSelect Label="Tournament Type" @bind-Value="@tType" T="TournamentType">
+                @foreach (TournamentType item in Enum.GetValues(typeof(TournamentType)))
+                {
+                    <MudSelectItem Value="@item" T="TournamentType">@item</MudSelectItem>
+                }
+            </MudSelect>
+        </div> 
+        <div class="d-flex flex-row gap-2">
+            <MudTextField Label="Description" @bind-Value="@tDescription" />
+        </div>
+        <div class="d-flex flex-row gap-2">
+            <MudTextField Label="Start Date" @bind-Value="@StartDate" />
+        </div>
+        <div class="d-flex flex-row gap-2">
+            <MudTextField Label="Check In Duration" @bind-Value="@CheckInDuration" />
+        </div>
+    </MudPaper>
+</MudPopover>
+
+@code {
+    bool viewPopup = false;
+    ChallongeClient? _client;
+
+    private string tName = "";
+    private TournamentType tType;
+    private string tUrl = "";
+    private string tDescription = "";
+    private DateTime StartDate;
+    private int CheckInDuration;
+
+
+    private async Task AddNewTournament()
+    {
+        if (_client == null)
+        {
+            _client = _challongeAuth.GetClient();
+        }
+
+    }
+    private void TogglePopup()
+    {
+        if (viewPopup)
+        {
+            viewPopup = false;
+            _client = null;
+        }
+
+        else
+        {
+            viewPopup = true;
+            ChallongeClient? _client = _challongeAuth.GetClient();
+        }
+
+    }
+
+    private void Cancel()
+    {
+        viewPopup = false;
+        StateHasChanged();
+    }
+}

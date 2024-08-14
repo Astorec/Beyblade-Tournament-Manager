@@ -1,6 +1,7 @@
 @using BeybladeTournamentManager.ApiCalls.Challonge
 @using BeybladeTournamentManager.ApiCalls.Challonge.Data
 @using BeybladeTournamentManager.Helpers
+@using BeybladeTournamentManager.Components.Pages.Components
 @using Challonge.Api
 @using Challonge.Objects
 @using System.Text.RegularExpressions
@@ -8,48 +9,67 @@
 @inject IPlayerHelper _playerHelper
 
 @page "/"
-<MudPaper class="d-flex flex-coloumn justify-center gap-3" Elevation="0">
-    <div class="d-flex flex-row gap-2">
-        <MudText Typo="Typo.h4">Tournament URL</MudText>
-        <MudTextField @bind-Value="_tournamentUrl" />
-    </div>
-    <div>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-        OnClick="@(async () => { await GetParticipentsViaURL(); })">
-        OK</MudButton>
-    </div>
-</MudPaper>
 
-<MudPaper class="d-flex mt-2" Width="100%">
-    <MudContainer MaxWidth="MaxWidth.Medium">
-        <MudTable T="Player" Items="@players">
-            <HeaderContent>
-                <MudTh>Name</MudTh>
-                <MudTh>Region</MudTh>
-                <MudTh>Check-In</MudTh>
-                <MudTh>Check-In Time</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@context.Name</MudTd>
-                <MudTd>@context.region</MudTd>
+
+<MudPaper class="d-flex flex-coloumn justify-center gap-3 mt-3" Elevation="0">
+    <NewTournament />
+    <AddTournemantByUrl PreviousUrls="previousUrls" OnUrlSelected="HandleUrlAdded" />
+    @if (players.Count > 0)
+    {
+        <MudButton Color="Color.Primary" Variant="Variant.Filled">Add Player</MudButton>
+        
+    }
+    
+    </MudPaper>
+
+    <MudPaper class="d-flex mt-2" Width="100%">
+        <MudContainer MaxWidth="MaxWidth.Medium">
+            <MudTable T="Player" Items="@players">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Region</MudTh>
+                    <MudTh>Check-In</MudTh>
+                    <MudTh>Check-In Time</MudTh>
+                </HeaderContent>
+
+                <RowTemplate>
+                    <MudTd>@context.Name</MudTd>
+                    <MudTd>
+                        <MudSelect T="string" Value="@context.region" ValueChanged="@(e => context.region = e)">
+                            @foreach (var item in regions)
+                        {
+                            <MudSelectItem T="string" Value="@item">@item</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudTd>
                 <MudTd>
-                    <MudSwitch T="bool" Value="@context.CheckInState" @onclick="@(e => OnCheckInStateChanged(context))" Color="Color.Primary"/>
+                    <MudSwitch T="bool" Value="@context.CheckInState" @onclick="@(e => OnCheckInStateChanged(context))"
+                        Color="Color.Primary" />
                 </MudTd>
                 <MudTd>
                     <MudText>@context.CheckInTime</MudText>
                 </MudTd>
             </RowTemplate>
         </MudTable>
-
     </MudContainer>
 </MudPaper>
 
 
+
+
 @code {
     ChallongeClient? _client;
+    private bool loading = true;
     private MudTable<Player>? _table;
     List<Player> players = new List<Player>();
+    List<string> regions = new List<string>{"London", "Norwich", "Oxfordshire", "Yorkshire", "South West", "South East",
+"North West", "North East",
+"Midlands", "Wales", "Scotland", "Ireland"};
+    Dictionary<string, List<Player>> playerCache = new Dictionary<string, List<Player>>();
+    private Dictionary<string, string> previousUrls = new Dictionary<string, string>();
     private string _tournamentUrl = "";
+    public string currentTournamentUrl = "";
+    private bool isInit = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -57,93 +77,129 @@
         {
             _client = _challongeAuth.GetClient();
 
-            var url = _challongeAuth.GetSettings().CurrentTournament;
-            if (url != null && url != "")
+            if (_challongeAuth.GetSettings().PreviousTournements != null)
             {
-                _tournamentUrl = url;
-                var participants = await _client.GetParticipantsAsync(GetTournamentCode(_tournamentUrl));
-
-                if (participants.Count() == 0)
-                {
-                    return;
-                }
-                List<Participant> participantsList = participants.ToList();
-                    
-                    // Prevent doubling up the list on switching tabs
-                _playerHelper.ClearPlayers();
-                // Add the new Players to the list
-                AddPlayerFromParticipant(participantsList);
-
-                
-                players = _playerHelper.GetCurrentPlayers();
-
-                StateHasChanged();                  
+                previousUrls = _challongeAuth.GetSettings().PreviousTournements;
             }
 
+            if (_challongeAuth.GetSettings().CurrentTournament != "")
+            {
+                currentTournamentUrl = _challongeAuth.GetSettings().CurrentTournament;
+                await GetParticipentsViaURL(currentTournamentUrl);
+            }
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+
+        }
+
+    }
+
+    private async Task HandleUrlAdded(string url)
+    {
+
+        var currentSettings = _challongeAuth.GetSettings();
+
+        var code = GetTournamentCode(url);
+
+        if (!previousUrls.ContainsKey(code))
+        {
+            previousUrls.Add(code, url);
+            currentSettings.PreviousTournements = previousUrls;
+
+        }
+
+        currentSettings.CurrentTournament = code;
+        _challongeAuth.SaveSettings(currentSettings);
+        await GetParticipentsViaURL(code);
     }
 
     string GetTournamentCode(string url)
     {
         string pattern = @"(?<=\.com/).*$";
-
+        Console.WriteLine(Regex.Match(url, pattern).Value);
         return Regex.Match(url, pattern).Value;
     }
 
-    public async Task GetParticipentsViaURL()
+    public async Task GetParticipentsViaURL(string code)
     {
-        if(_client == null)
+        Console.WriteLine("In GetParticipentsViaURL");
+        if (_client == null)
         {
             return;
         }
-        
-        if (_tournamentUrl != null && _tournamentUrl != "")
-        {
-            // Clear the current list
-            players.Clear();
-            _playerHelper.ClearPlayers();
 
-            var url = GetTournamentCode(_tournamentUrl);
+        if (code != "" && _client != null)
+        {
+
             try
             {
-                var participants = await _client.GetParticipantsAsync(url);
-                List<Participant> participantsList = participants.ToList();
-
-                if (participantsList.Count == 0)
+                Console.WriteLine("In Try of GetParticipentsViaURL");
+                if (playerCache.ContainsKey(code))
                 {
-                    return;
+                    var cachedPlayers = playerCache[code];
+
+                    bool areEqual = players.SequenceEqual(cachedPlayers);
+
+                    if (!areEqual)
+                    {
+                        players.Clear();
+                        players.AddRange(cachedPlayers);
+                    }
+
+                }
+                else
+                {
+
+                    Console.WriteLine("In Else of GetParticipentsViaURL");
+                    var participants = await _client.GetParticipantsAsync(code);
+
+                    Console.WriteLine("Got Participants");
+                    List<Participant> participantsList = participants.ToList();
+
+                    players.Clear();
+                    _playerHelper.ClearPlayers();
+                    await AddPlayerFromParticipant(participantsList);
+                    players = _playerHelper.GetCurrentPlayers();
+
+                    // Create a new list instance to avoid reference issues
+                    var playersCopy = new List<Player>(players);
+                    playerCache[code] = playersCopy;
                 }
 
-                // Add the new Players to the list
-                AddPlayerFromParticipant(participantsList);
-                players = _playerHelper.GetCurrentPlayers();
-
+                currentTournamentUrl = code;
                 var currentSettings = _challongeAuth.GetSettings();
-                currentSettings.CurrentTournament = _tournamentUrl;
                 _challongeAuth.SaveSettings(currentSettings);
-                StateHasChanged();
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
             }
+            finally
+            {
+                StateHasChanged();
+            }
 
         }
     }
 
-    void AddPlayerFromParticipant(List<Participant> participants)
+    async Task AddPlayerFromParticipant(List<Participant> participants)
     {
 
-        foreach(var participant in participants)
+        foreach (var participant in participants)
         {
             Player p = new Player
-            {
-                Name = participant.Name,
-                region = "",
-                ChallongeId = participant.Id,
-                CheckInState = participant.CheckedIn,
-                CheckInTime = participant.CheckedInAt
-            };
+                {
+                    Name = participant.Name,
+                    region = "",
+                    ChallongeId = participant.Id,
+                    CheckInState = participant.CheckedIn,
+                    CheckInTime = participant.CheckedInAt
+                };
 
             _playerHelper.AddPlayer(p, "Combined Uk leaderboard");
         }
@@ -155,15 +211,14 @@
     }
     private async Task OnCheckInStateChanged(Player context)
     {
-        if(_client == null)
+        if (_client == null)
         {
             return;
         }
 
-
         try
         {
-            var participant = await _client.GetParticipantAsync(GetTournamentCode(_tournamentUrl), context.ChallongeId);
+            var participant = await _client.GetParticipantAsync(currentTournamentUrl, context.ChallongeId);
 
             // Update the player list
             var index = players.FindIndex(x => x.ChallongeId == context.ChallongeId);
@@ -181,9 +236,9 @@
                 players[index].CheckInState = false;
                 players[index].CheckInTime = null;
 
-             await _client.UndoCheckInParticipantAsync(participant);
+                await _client.UndoCheckInParticipantAsync(participant);
             }
-            
+
             StateHasChanged();
         }
         catch (Exception e)

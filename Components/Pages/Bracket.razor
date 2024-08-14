@@ -51,7 +51,6 @@
                                 }
                             }
                            
-
                                 @foreach (var match in roundGroup)
                                 {
                                     if(match.State != MatchState.Pending)
@@ -111,6 +110,9 @@
                                         else
                                         {
                                             <div class="bracket-match"> <!-- Each match in the round -->
+
+                                            @if(match.Player1Id != null && match.Player2Id != null)
+                                            {
                                                 <MudCard Elevation="4" class="d-flex rounded-pill mud-theme-secondary">
                                                     <MudCardContent>
                                                         <div class="d-flex justify-center">
@@ -123,8 +125,6 @@
                                                                         @if(match.State == MatchState.Open)
                                                                         {
                                                                             <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" @bind-Value="player1Scores[match.Id]" Variant="Variant.Outlined" OnChange="@UpdateMatchScore(match.Id, 1, player1Scores[match.Id])"/>
-                                                                           
-                                                                         
                                                                         }
                                                                         else if(match.State == MatchState.Complete)
                                                                         {
@@ -147,11 +147,9 @@
                                                                             <MudTextField class="d-flex flex-grow" Margin="Margin.Dense" FullWidth="false" style="width: 100%;" @bind-Value="player2Scores[match.Id]"Variant="Variant.Outlined" Disabled="true"/>
                                                                         }
                                                                     </div>
-                                                                </div>      
-                                                                                                                  
+                                                                </div>                                    
                                                             </div>
-                                                            @match.State
-                                                                 @if(match.State != MatchState.Complete)
+                                                            @if(match.State != MatchState.Complete)
                                                             {
                                                                 <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success"/>
                                                             }
@@ -161,7 +159,9 @@
                                                         </div>
                                                     </MudCardContent>
                                                 </MudCard>
+                                                }
                                             </div>
+                                            
                                         }       
                                     }
                                                                 
@@ -198,20 +198,29 @@
     bool finals = false;
     bool grandFinals = false;
     string tournamentUrl;
+    Dictionary<string, string> tournamentUrls = new Dictionary<string, string>();
     private Timer _timer;
 
     protected override async Task OnInitializedAsync()
     {
         _client = _challongeAuth.GetClient();
-        tournamentUrl = GetTournamentCode(_challongeAuth.GetSettings().CurrentTournament);
+        tournamentUrl = _challongeAuth.GetSettings().CurrentTournament;
 
-        if (_client != null)
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
         {
-          
-            await LoadInitalDataAsync();
-            matchesLoaded = true;
             
-            await InvokeAsync(StateHasChanged);
+            if (_client != null)
+            {
+          
+                await LoadInitalDataAsync();
+                matchesLoaded = true;
+            
+                await InvokeAsync(StateHasChanged);
+            }
         }
     }
 
@@ -421,7 +430,17 @@
     {
         string pattern = @"(?<=\.com/).*$";
 
-        return Regex.Match(url, pattern).Value;
+        var tournamentId = Regex.Match(url, pattern).Value;
+
+        if(tournamentUrls.ContainsKey(tournamentId))
+        {
+            return tournamentUrls[tournamentId];
+        }
+        else
+        {
+            tournamentUrls.Add(tournamentId, url);
+            return tournamentId;
+        }
     }
 
      public void Dispose()

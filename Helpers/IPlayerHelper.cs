@@ -14,9 +14,8 @@ namespace BeybladeTournamentManager.Helpers
         public Player GetPlayerByName(string name);
 
         public void ClearPlayers();
-        public Task GetPlayerLeaderboardInfo(Player player, string sheetName);
         public Task<List<Player>> GetLeaderboard(string sheetTitle);
-        public IList<Sheet> GetSheets();
-        public List<Sheet> GetSheetsList();
+        public Task GetSheets();
+        public List<string> GetSheetsList();
     }
 }

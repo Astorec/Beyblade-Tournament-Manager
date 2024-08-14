@@ -3,20 +3,23 @@ using BeybladeTournamentManager.ApiCalls.Challonge.Data;
 using BeybladeTournamentManager.ApiCalls.Google;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
+using Microsoft.VisualBasic;
 
 namespace BeybladeTournamentManager.Helpers
 {
     public class PlayerHelper : IPlayerHelper
     {
         private static List<Player> _currentPlayers;
-        private static IGoogleService _googleService;
+        private static IGoogleServiceFactory _googleServiceFactory;
         private static SpreadsheetsResource.ValuesResource.GetRequest BeybladeSheet;
-        private static List<Sheet> _sheets = new List<Sheet>();
-        public PlayerHelper(IGoogleService googleService)
+        private static List<string> _sheets = new List<string>();
+        private static Dictionary<string, Sheet> _sheetsCache = new Dictionary<string, Sheet>();
+        private readonly Dictionary<string, IList<IList<object>>> _cache = new Dictionary<string, IList<IList<object>>>();
+        public PlayerHelper(IGoogleServiceFactory googleServiceFactory)
         {
-            _googleService = googleService;
+            _googleServiceFactory = googleServiceFactory;
             _currentPlayers = new List<Player>();
-            _sheets = (List<Sheet>)GetSheets();
+            GetSheets().Wait();
         }
 
         public List<Player> GetCurrentPlayers()
@@ -55,7 +58,6 @@ namespace BeybladeTournamentManager.Helpers
         public void AddPlayer(Player player, string sheetName)
         {
             _currentPlayers.Add(player);
-            GetPlayerLeaderboardInfo(player, sheetName);
         }
 
         public void RemovePlayer(Player player)
@@ -68,86 +70,168 @@ namespace BeybladeTournamentManager.Helpers
             _currentPlayers.Clear();
         }
 
-        public async Task GetPlayerLeaderboardInfo(Player player, string sheetTitle)
+
+        public async Task GetSheets()
         {
-            BeybladeSheet = null;
-
-            await SetupSheet(sheetTitle);
-
-
-            var response = BeybladeSheet.Execute();
-            var values = response.Values;
-
-            if (values != null && values.Count > 0)
+            try
             {
-                foreach (var row in values)
+                var _googleService = _googleServiceFactory.Create();
+                Console.WriteLine("Getting sheets");
+                // Define request parameters.
+                SpreadsheetsResource.GetRequest request = _googleService.GetService().Spreadsheets.Get("17vbW07-DwltCwamcXXUq1OgIqg4zsRbWtnN9UX5arQ0");
+
+                // Fetch the spreadsheet metadata.
+                Spreadsheet spreadsheet = request.Execute();
+                Console.WriteLine("Request Executed");
+
+                Console.WriteLine("Processing Sheets");
+                foreach (var sheet in spreadsheet.Sheets)
                 {
-                    if (row.Count > 0 && row[1].ToString().Equals(player.Name, StringComparison.OrdinalIgnoreCase))
+                    var sheetTitle = sheet.Properties.Title;
+                    Console.WriteLine($"Processing sheet {sheetTitle}");
+
+                    var expectedColumnNames = new List<string> { "Rank", "Blader", "Points", "W/L", "1st", "2nd", "3rd", "Region" };
+                    var headerRowIndex = -1;
+
+                    // Fetch the sheet data
+                    var dataRange = $"{sheetTitle}!A1:Z";
+                    var getRequest = _googleService.GetService().Spreadsheets.Values.Get("17vbW07-DwltCwamcXXUq1OgIqg4zsRbWtnN9UX5arQ0", dataRange);
+                    ValueRange response = getRequest.Execute();
+
+                    if (response.Values == null || response.Values.Count == 0)
                     {
-                        // Player found, retrieve their data
-                        player.LeaderboardRank = row[0].ToString();
-                        player.Points = int.Parse(row[2].ToString());
-                        string pattern = @"(\d+)/(\d+)";
-                        Regex regex = new Regex(pattern);
-                        Match match = regex.Match(row[3].ToString());
-
-                        if (match.Success)
-                        {
-                            player.Wins = int.Parse(match.Groups[1].Value);
-                            player.Losses = int.Parse(match.Groups[2].Value);
-                        }
-                        else
-                        {
-                            player.Wins = 0;
-                            player.Losses = 0;
-                        }
-
-                        player.first = int.Parse(row[4].ToString());
-                        player.second = int.Parse(row[5].ToString());
-                        player.third = int.Parse(row[6].ToString());
-                        player.region = row[7].ToString();
-                        return;
+                        Console.WriteLine($"No data found in sheet {sheetTitle}");
+                        continue;
                     }
+
+                    bool found = false;
+                    // Find the header row
+                    for (int i = 0; i < response.Values.Count; i++)
+                    {
+                        var row = response.Values[i];
+                        if (row.Count >= expectedColumnNames.Count && row.SequenceEqual(expectedColumnNames))
+                        {
+                            found = true;
+                            headerRowIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        expectedColumnNames.Remove("Region");
+                        for (int i = 0; i < response.Values.Count; i++)
+                        {
+                            var row = response.Values[i];
+                            if (row.Count >= expectedColumnNames.Count && row.SequenceEqual(expectedColumnNames))
+                            {
+                                headerRowIndex = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (headerRowIndex == -1)
+                    {
+                        Console.WriteLine($"Header row not found in sheet {sheetTitle}");
+                        continue;
+                    }
+
+                    // Define the data range based on the header row index
+                    var dataStartRow = headerRowIndex + 2; // Assuming data starts two rows after the header
+                    var dataRangeToFetch = $"{sheetTitle}!A{dataStartRow}:H";
+                    var dataRequest = _googleService.GetService().Spreadsheets.Values.Get("17vbW07-DwltCwamcXXUq1OgIqg4zsRbWtnN9UX5arQ0", dataRangeToFetch);
+                    ValueRange dataResponse = dataRequest.Execute();
+
+                    if (dataResponse.Values == null || dataResponse.Values.Count == 0)
+                    {
+                        Console.WriteLine($"No data found in range {dataRangeToFetch}");
+                        continue;
+                    }
+
+                    // Save to cache
+                    _cache[sheetTitle] = dataResponse.Values;
+                    Console.WriteLine($"Data cached for sheet {sheetTitle}");
                 }
             }
+            catch (TaskCanceledException ex)
+            {
+                Console.WriteLine("Request timed out.");
+                throw new Exception("The request timed out.", ex);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+                throw;
+            }
+        }
 
-            Console.WriteLine($"Player {player.Name} not found.");
+        public IList<IList<object>> GetCachedData(string sheetTitle)
+        {
+            if (_cache.TryGetValue(sheetTitle, out var data))
+            {
+                return data;
+            }
+            else
+            {
+                Console.WriteLine($"No cached data found for sheet {sheetTitle}");
+                return null;
+            }
         }
 
         public async Task<List<Player>> GetLeaderboard(string sheetTitle)
         {
-            BeybladeSheet = null;
-            await SetupSheet(sheetTitle);
+            // Ensure the sheets are set up and data is cached
+            if (!_cache.ContainsKey(sheetTitle))
+            {
+                await GetSheets();
+            }
 
-            var response = BeybladeSheet.Execute();
-            var values = response.Values;
+            var values = GetCachedData(sheetTitle);
             List<Player> players = new List<Player>();
+
             if (values != null && values.Count > 0)
             {
+
                 foreach (var row in values)
                 {
-                    if (row.Count > 0)
+                    Console.WriteLine($"Sheet: {sheetTitle} - Row Count: {row.Count()} - Row: {string.Join(", ", row)}");
+                    if (row.Count() < 8) // Ensure there are at least 8 elements in the row
+                    {
+                        Player tmpPlayer = new Player
+                        {
+                            LeaderboardRank = row[0].ToString(),
+                            Name = row[1].ToString(),
+                            Points = int.TryParse(row.ElementAtOrDefault(2)?.ToString(), out var points) ? points : 0,
+                            first = int.TryParse(row.ElementAtOrDefault(4)?.ToString(), out var first) ? first : 0,
+                            second = int.TryParse(row.ElementAtOrDefault(5)?.ToString(), out var second) ? second : 0,
+                            third = int.TryParse(row.ElementAtOrDefault(6)?.ToString(), out var third) ? third : 0,
+                            region = row.ElementAtOrDefault(7)?.ToString() ?? "N/A",
+                        };
+                        players.Add(tmpPlayer);
+                    }
+                    else
                     {
                         Player player = new Player
                         {
-                            LeaderboardRank = row.Count > 0 ? row[0].ToString() : string.Empty,
-                            Name = row.Count > 1 ? row[1].ToString() : string.Empty,
-                            Points = row.Count > 2 ? SafeParseInt(row[2].ToString()) : 0,
-                            first = row.Count > 4 ? SafeParseInt(row[4].ToString()) : 0,
-                            second = row.Count > 5 ? SafeParseInt(row[5].ToString()) : 0,
-                            third = row.Count > 6 ? SafeParseInt(row[6].ToString()) : 0,
-                            region = row.Count > 7 ? row[7].ToString() : string.Empty
+                            LeaderboardRank = row[0].ToString(),
+                            Name = row[1].ToString(),
+                            Points = int.TryParse(row.ElementAtOrDefault(2)?.ToString(), out var points) ? points : 0,
+                            first = int.TryParse(row.ElementAtOrDefault(4)?.ToString(), out var first) ? first : 0,
+                            second = int.TryParse(row.ElementAtOrDefault(5)?.ToString(), out var second) ? second : 0,
+                            third = int.TryParse(row.ElementAtOrDefault(6)?.ToString(), out var third) ? third : 0,
+                            region = row.ElementAtOrDefault(7)?.ToString() ?? "N/A",
                         };
 
-                        // Regex pattern to extract wins and losses
                         string pattern = @"(\d+)/(\d+)";
                         Regex regex = new Regex(pattern);
-                        Match match = regex.Match(row.Count > 3 ? row[3].ToString() : string.Empty);
+                        string row3Value = row.ElementAtOrDefault(3)?.ToString() ?? string.Empty;
+                        Match match = regex.Match(row3Value);
 
                         if (match.Success)
                         {
-                            player.Wins = int.Parse(match.Groups[1].Value);
-                            player.Losses = int.Parse(match.Groups[2].Value);
+                            player.Wins = int.TryParse(match.Groups[1].Value, out var wins) ? wins : 0;
+                            player.Losses = int.TryParse(match.Groups[2].Value, out var losses) ? losses : 0;
                         }
                         else
                         {
@@ -157,47 +241,26 @@ namespace BeybladeTournamentManager.Helpers
 
                         players.Add(player);
                     }
+
+
                 }
-            }
-            return players;
-        }
-
-        private async Task SetupSheet(string sheetTitle)
-        {
-
-            // Get the sheet ID from the sheets list
-            var sheetId = _sheets.FirstOrDefault(s => s.Properties.Title == sheetTitle)?.Properties.SheetId;
-            if (sheetId == null)
-            {
-                throw new Exception($"Sheet {sheetTitle} not found.");
             }
             else
             {
-                BeybladeSheet = _googleService.GetService().Spreadsheets.Values.Get("17vbW07-DwltCwamcXXUq1OgIqg4zsRbWtnN9UX5arQ0", sheetTitle + "!A18:H");
+                Console.WriteLine($"No data found for sheet {sheetTitle}");
             }
-        }
-        
 
-        public IList<Sheet> GetSheets()
-        {
-            var service = _googleService.GetService();
-
-            // Define request parameters.
-            SpreadsheetsResource.GetRequest request = service.Spreadsheets.Get("17vbW07-DwltCwamcXXUq1OgIqg4zsRbWtnN9UX5arQ0");
-
-            // Fetch the spreadsheet metadata.
-            Spreadsheet spreadsheet = request.Execute();
-
-            // Get the list of sheets.
-            IList<Sheet> sheets = spreadsheet.Sheets;
-            return sheets;
+            return players;
         }
 
-        public List<Sheet> GetSheetsList()
+        public List<string> GetSheetsList()
         {
-            if(_sheets.Count == 0)
+            if (_sheets.Count == 0)
             {
-                _sheets = (List<Sheet>)GetSheets();
+                foreach (var sheet in _cache)
+                {
+                    _sheets.Add(sheet.Key);
+                }
             }
             Console.WriteLine(_sheets.Count);
             return _sheets;

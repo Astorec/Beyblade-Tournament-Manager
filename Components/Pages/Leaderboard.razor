@@ -5,7 +5,15 @@
 
 @inject IGoogleService _googleService
 @inject IPlayerHelper _playerHelper
-<MudPaper class="d-flex flex-coloumn justify-center gap-3" Elevation="0">
+@if (loading)
+{
+    <MudPaper class="d-flex flex-coloumn justify-center gap-3" Elevation="0">
+        Loading content...
+    </MudPaper>
+}
+else
+{
+    <MudPaper class="d-flex flex-coloumn justify-center gap-3" Elevation="0">
     <div class="d-flex flex-row flex-grow-1">
         <MudPaper Class="flex-grow-1 py-8" Width="64px" Elevation="0" />
         <MudPaper Class="d-flex  justify-center flex-grow-1 py-8 mt-1" Width="10%%" Elevation="0">
@@ -13,78 +21,111 @@
                 <MudText>Select Leaderboard </MudText>
             </MudPaper>
             <MudPaper Class="flex-grow-1 py-8 mt-1" Width="90%" Elevation="0">
-                <MudSelect T="string" Value="selectedLeaderboard" SelectedValues="leaderboards"
-                    ValueChanged="value => OnLeaderboardChanged(value)">
-                    @foreach (var item in leaderboards)
-                    {
-                        <MudSelectItem T="string" Value="@item">@item</MudSelectItem>
-                    }
-                </MudSelect>
+                    <MudSelect T="string" Value="@selectedLeaderboard" ValueChanged="OnLeaderboardChanged">
+                        @foreach (var item in leaderboards)
+                        {
+                            <MudSelectItem T="string" Value="@item">@item</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudPaper>
+
             </MudPaper>
 
-        </MudPaper>
-
-        <MudPaper Class="flex-grow-1 py-8" Width="64px" Elevation="0" />
-    </div>
+            <MudPaper Class="flex-grow-1 py-8" Width="64px" Elevation="0" />
+        </div>
 
 
-</MudPaper>
+    </MudPaper>
 
-<MudPaper class="d-flex mt-2" Width="100%">
-    <MudContainer MaxWidth="MaxWidth.Medium">
-        <MudTable T="Player" Items="@players">
-            <HeaderContent>
-                <MudTh>Rank</MudTh>
-                <MudTh>Name</MudTh>
-                <MudTh>Points</MudTh>
-                <MudTh>W/L</MudTh>
-                <MudTh>First</MudTh>
-                <MudTh>Second</MudTh>
-                <MudTh>Third</MudTh>
-                <MudTh>Region</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTh>@context.LeaderboardRank</MudTh>
-                <MudTh>@context.Name</MudTh>
-                <MudTh>@context.Points</MudTh>
-                <MudTh>@context.Wins / @context.Losses</MudTh>
-                <MudTh>@context.first</MudTh>
-                <MudTh>@context.second</MudTh>
-                <MudTh>@context.third</MudTh>
-                <MudTh>@context.region</MudTh>
-            </RowTemplate>
-        </MudTable>
-    </MudContainer>
-</MudPaper>
+    <MudPaper class="d-flex mt-2" Width="100%">
+        <MudContainer MaxWidth="MaxWidth.Medium">
+            <MudTable T="Player" Items="@players">
+                <HeaderContent>
+                    <MudTh>Rank</MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Points</MudTh>
+                    <MudTh>W/L</MudTh>
+                    <MudTh>First</MudTh>
+                    <MudTh>Second</MudTh>
+                    <MudTh>Third</MudTh>
+                    <MudTh>Region</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTh>@context.LeaderboardRank</MudTh>
+                    <MudTh>@context.Name</MudTh>
+                    <MudTh>@context.Points</MudTh>
+                    <MudTh>@context.Wins / @context.Losses</MudTh>
+                    <MudTh>@context.first</MudTh>
+                    <MudTh>@context.second</MudTh>
+                    <MudTh>@context.third</MudTh>
+                    <MudTh>@context.region</MudTh>
+                </RowTemplate>
+            </MudTable>
+        </MudContainer>
+    </MudPaper>
+}
+
 
 @code
 {
     public List<Player> players = new List<Player>();
     private IEnumerable<string> leaderboards = new List<string>();
     private string selectedLeaderboard;
-    bool firstInit = true;
-    protected override async Task OnInitializedAsync()
+    bool loading = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstInit)
+        if (firstRender)
         {
             players = _playerHelper.GetLeaderboard("Combined Uk leaderboard").Result;
-
-            var sheetsList = _playerHelper.GetSheetsList();
-            leaderboards = sheetsList.Select(s => s.Properties.Title).ToList();
-
-
+            leaderboards  = _playerHelper.GetSheetsList();
+            selectedLeaderboard = leaderboards.FirstOrDefault();
+            loading = false;
+            StateHasChanged();
         }
     }
-
     private async Task OnLeaderboardChanged(string value)
     {
         selectedLeaderboard = value;
+        await LoadLeaderboard();
+    }   
 
-        // Await the asynchronous method to avoid blocking the main thread
+    private async Task LoadLeaderboard()
+    {
+        players.Clear();
         var leaderboard = await _playerHelper.GetLeaderboard(selectedLeaderboard);
-
-        // Ensure the list is sorted by LeaderboardRank
-       players = leaderboard.OrderBy(p => int.Parse(p.LeaderboardRank)).ToList();
+        players = leaderboard.OrderBy(p => p.LeaderboardRank, new LeaderboardRankComparer()).ToList();
+        StateHasChanged();
     }
 
+    public class LeaderboardRankComparer : IComparer<string>
+{
+    public int Compare(string x, string y)
+    {
+        // Try to parse both strings as integers
+        bool xIsNumeric = int.TryParse(x, out int xRank);
+        bool yIsNumeric = int.TryParse(y, out int yRank);
+
+        // If both are numeric, compare their integer values
+        if (xIsNumeric && yIsNumeric)
+        {
+            return xRank.CompareTo(yRank);
+        }
+
+        // If only x is numeric, it should come before y
+        if (xIsNumeric)
+        {
+            return -1;
+        }
+
+        // If only y is numeric, it should come before x
+        if (yIsNumeric)
+        {
+            return 1;
+        }
+
+        // If neither are numeric, compare them as strings
+        return string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
+    }
+}
 }

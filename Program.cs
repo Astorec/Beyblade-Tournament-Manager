@@ -11,6 +11,11 @@ using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure logging
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Debug);
+
 var userSettingsPath = Path.Combine(builder.Environment.ContentRootPath, "appsettings.user.json");
 if (File.Exists(userSettingsPath))
 {
@@ -24,7 +29,8 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddMudServices();
 builder.Services.AddScoped<IAutentication, Authentication>();
-builder.Services.AddScoped<IPlayerHelper, PlayerHelper>();
+builder.Services.AddSingleton<IGoogleServiceFactory, GoogleServiceFactory>();
+builder.Services.AddSingleton<IPlayerHelper, PlayerHelper>();
 builder.Services.AddScoped<IGoogleService, GoogleService>();
 builder.Services.AddScoped<IMatches, Matches>();
 builder.Services.AddScoped<ITournamentManager, TournamentManager>();

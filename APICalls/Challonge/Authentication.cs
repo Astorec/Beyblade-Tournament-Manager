@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Challonge.Api;
 using Challonge.Objects;
 using BeybladeTournamentManager.Config;
+using System.Diagnostics;
 
 namespace BeybladeTournamentManager.ApiCalls.Challonge
 {
@@ -47,16 +48,19 @@ namespace BeybladeTournamentManager.ApiCalls.Challonge
 
                 IConfigurationRoot configuration = builder.Build();
 
-                var settings = new AppSettings{
+                var settings = new AppSettings
+                {
                     ChallongeAPIKey = configuration["ChallongeAPIKey"],
                     ChallongeUsername = configuration["ChallongeUsername"],
                     GoogleAppName = configuration["GoogleAppName"],
-                    SheetID = configuration["SheetID"],                    
-                    CurrentTournament = configuration["CurrentTournament"]
+                    CurrentTournament = "",
+                    SheetID = configuration["SheetID"],
+                    PreviousTournements = configuration.GetSection("PreviousTournements").Get<Dictionary<string, string>>(),
                 };
-                
+
 
                 Console.WriteLine($"ChallongeUsername: {settings.ChallongeUsername}");
+                var currentProcess = Process.GetCurrentProcess();
                 return settings;
             }
             catch (Exception ex)
@@ -68,12 +72,6 @@ namespace BeybladeTournamentManager.ApiCalls.Challonge
 
         public void SaveSettings(AppSettings settings)
         {
-            if (settings.CurrentTournament == null || settings.CurrentTournament != "")
-            {
-                if (_settings.CurrentTournament != null && _settings.CurrentTournament != "")
-                    settings.CurrentTournament = _settings.CurrentTournament;
-            }
-
             _settings = settings;
             var configFilePath = Path.Combine(Directory.GetCurrentDirectory(), "appsettings.user.json");
             var settingsJson = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
