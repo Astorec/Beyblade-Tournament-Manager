@@ -22,11 +22,9 @@ if (File.Exists(userSettingsPath))
     builder.Configuration.AddJsonFile(userSettingsPath, optional: true, reloadOnChange: true);
 }
 
-
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-
 builder.Services.AddMudServices();
 builder.Services.AddScoped<IAutentication, Authentication>();
 builder.Services.AddSingleton<IGoogleServiceFactory, GoogleServiceFactory>();

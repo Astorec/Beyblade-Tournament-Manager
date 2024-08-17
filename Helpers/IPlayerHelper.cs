@@ -6,6 +6,7 @@ namespace BeybladeTournamentManager.Helpers
     public interface IPlayerHelper
     {
         public void AddPlayer(Player player, string sheetName);
+        public void AddPlayers(List<Player> players, string sheetName);
         public void RemovePlayer(Player player);
         public void UpdatePlayer(Player player);
         public void SetCurrentPlayers(List<Player> players);
@@ -17,5 +18,9 @@ namespace BeybladeTournamentManager.Helpers
         public Task<List<Player>> GetLeaderboard(string sheetTitle);
         public Task GetSheets();
         public List<string> GetSheetsList();
+        public Task CreateSheet(string sheetName);
+        public Task AddPlayersToSheet(string sheetName, List<Player> players);
+        public Task AddNewPlayer(string sheetName, Player player);
+        public Task UpdatePlayerInSheet(string sheetName, List<Player> player);
     }
 }

@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Challonge-DotNet" Version="3.0.1" />
+    <PackageReference Include="Challonge-DotNet" Version="3.0.2" />
     <PackageReference Include="Google.Apis.Sheets.v4" Version="1.68.0.3476" />
     <PackageReference Include="MudBlazor" Version="7.3.0" />
   </ItemGroup>

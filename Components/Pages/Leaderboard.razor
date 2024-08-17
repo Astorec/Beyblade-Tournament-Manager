@@ -1,10 +1,13 @@
 @page "/Leaderboard"
+@using BeybladeTournamentManager.ApiCalls.Challonge
 @using BeybladeTournamentManager.ApiCalls.Challonge.Data
 @using BeybladeTournamentManager.ApiCalls.Google
+@using BeybladeTournamentManager.Config
 @using BeybladeTournamentManager.Helpers
 
 @inject IGoogleService _googleService
 @inject IPlayerHelper _playerHelper
+@inject IAutentication _challongeAuth
 @if (loading)
 {
     <MudPaper class="d-flex flex-coloumn justify-center gap-3" Elevation="0">
@@ -72,12 +75,13 @@ else
     private IEnumerable<string> leaderboards = new List<string>();
     private string selectedLeaderboard;
     bool loading = true;
-
+    AppSettings settings;
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            players = _playerHelper.GetLeaderboard("Combined Uk leaderboard").Result;
+            settings = _challongeAuth.GetSettings();
+            players = _playerHelper.GetLeaderboard(settings.CurrentTournamentDetails.relatedSheetName).Result;
             leaderboards  = _playerHelper.GetSheetsList();
             selectedLeaderboard = leaderboards.FirstOrDefault();
             loading = false;

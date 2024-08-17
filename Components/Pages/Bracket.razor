@@ -1,6 +1,7 @@
 @page "/Bracket"
 @using BeybladeTournamentManager.ApiCalls.Challonge
 @using BeybladeTournamentManager.ApiCalls.Challonge.Data
+@using BeybladeTournamentManager.Helpers
 @using Challonge.Api
 @using Challonge.Objects
 @using System.Text.RegularExpressions
@@ -9,6 +10,7 @@
 @inject IMatches _matches
 @inject IParticipants _participants
 @inject ITournamentManager _tournamentInfo
+@inject IPlayerHelper _playerHelper
 
 <MudPaper Elevation="0">
     <MudContainer>
@@ -151,10 +153,10 @@
                                                             </div>
                                                             @if(match.State != MatchState.Complete)
                                                             {
-                                                                <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success"/>
+                                                                <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success" @onclick="() => UpdateScores(match)"/>
                                                             }
                                                             else{
-                                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning"/>
+                                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" @onclick="() => ReopenMatch(match)"/>
                                                             }
                                                         </div>
                                                     </MudCardContent>
@@ -325,6 +327,8 @@
 
     public async Task UpdateScores(Challonge.Objects.Match match)
     {
+        LeaderboardHelper leaderboardHelper = new LeaderboardHelper();
+        
         // Update Scores for the match in the Local List
         bool isTie = false;
         var player1Score = player1Scores[match.Id];
@@ -352,7 +356,7 @@
         }        
 
         await _client.UpdateMatchAsync(match, matchInfo);
-
+        await leaderboardHelper.UpdatePlayersFromMatch(match, _playerHelper, _challongeAuth.GetSettings());
         await RefreshData();        
 
         await InvokeAsync(StateHasChanged);      
@@ -360,6 +364,8 @@
 
     public async Task ReopenMatch(Challonge.Objects.Match match)
     {
+          LeaderboardHelper leaderboardHelper = new LeaderboardHelper();
+          await leaderboardHelper.UndoUpdateFromMatch(match, _playerHelper, _challongeAuth.GetSettings());
         await _client.ReopenMatchAsync(match);
         var index = matches.FindIndex(m => m.Id == match.Id);
           await RefreshData();        

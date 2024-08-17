@@ -1,0 +1,80 @@
+@using BeybladeTournamentManager.ApiCalls.Challonge
+@using BeybladeTournamentManager.ApiCalls.Challonge.Data
+@using BeybladeTournamentManager.Helpers
+@using Challonge.Api
+
+@inject NavigationManager navManger
+@inject IAutentication _challongeAuth
+@inject IPlayerHelper _playerHelper
+<MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="TogglePopup">Add Player</MudButton>
+
+<MudPopover Open="@viewPopup" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter">
+    <MudTextField Label="Player Name" @bind-Value="@playerName" />
+    <MudTextField Label="Player Email" @bind-Value="@playerEmail" />
+    <MudSelect Label="Region" @bind-Value="@playerRegion" T="string">
+        @foreach (var item in regions)
+        {
+            <MudSelectItem Value="@item">@item</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="AddPlayer"> OK</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="Cancel"> Cancel</MudButton>
+</MudPopover>
+
+
+@code {
+    bool viewPopup = false;
+    ChallongeClient? _client;
+    string playerName;
+    string playerEmail;
+    string playerRegion;
+
+    List<string> regions = new List<string>{"London", "Norwich", "Oxfordshire", "Yorkshire", "South West", "South East",
+"North West", "North East",
+"Midlands", "Wales", "Scotland", "Ireland"};
+
+    [Parameter]
+    public EventCallback<Player> PlayerToAdd { get; set; }
+
+    private async Task AddPlayer()
+    {
+        if (!string.IsNullOrEmpty(playerName) && !string.IsNullOrEmpty(playerRegion))
+        {
+            Player player = new Player
+                {
+                    Name = playerName,
+                    Email = playerEmail,
+                    region = playerRegion
+                };
+
+            await PlayerToAdd.InvokeAsync(player);
+
+            viewPopup = false;
+            StateHasChanged();
+
+            playerName = string.Empty;
+            playerRegion = string.Empty;
+        }
+    }
+
+    private void TogglePopup()
+    {
+        if (viewPopup)
+        {
+            viewPopup = false;
+            _client = null;
+        }
+        else
+        {
+            viewPopup = true;
+            ChallongeClient? _client = _challongeAuth.GetClient();
+        }
+    }
+
+    private void Cancel()
+    {
+        viewPopup = false;
+        StateHasChanged();
+    }
+}

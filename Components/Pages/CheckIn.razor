@@ -7,36 +7,32 @@
 @using System.Text.RegularExpressions
 @inject IAutentication _challongeAuth
 @inject IPlayerHelper _playerHelper
-
+@inject ITournamentManager _tournamentInfo
 @page "/"
 
-
 <MudPaper class="d-flex flex-coloumn justify-center gap-3 mt-3" Elevation="0">
-    <NewTournament />
+    <NewTournament AddedTournament="AddedNewTournament" />
     <AddTournemantByUrl PreviousUrls="previousUrls" OnUrlSelected="HandleUrlAdded" />
-    @if (players.Count > 0)
-    {
-        <MudButton Color="Color.Primary" Variant="Variant.Filled">Add Player</MudButton>
-        
-    }
-    
-    </MudPaper>
 
-    <MudPaper class="d-flex mt-2" Width="100%">
-        <MudContainer MaxWidth="MaxWidth.Medium">
-            <MudTable T="Player" Items="@players">
-                <HeaderContent>
-                    <MudTh>Name</MudTh>
-                    <MudTh>Region</MudTh>
-                    <MudTh>Check-In</MudTh>
-                    <MudTh>Check-In Time</MudTh>
-                </HeaderContent>
+    <AddNewPlayer PlayerToAdd="AddPlayer" />
 
-                <RowTemplate>
-                    <MudTd>@context.Name</MudTd>
-                    <MudTd>
-                        <MudSelect T="string" Value="@context.region" ValueChanged="@(e => context.region = e)">
-                            @foreach (var item in regions)
+
+</MudPaper>
+<MudPaper class="d-flex mt-2" Width="100%">
+    <MudContainer MaxWidth="MaxWidth.Medium">
+        <MudTable T="Player" Items="@players">
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Region</MudTh>
+                <MudTh>Check-In</MudTh>
+                <MudTh>Check-In Time</MudTh>
+            </HeaderContent>
+
+            <RowTemplate>
+                <MudTd>@context.Name</MudTd>
+                <MudTd>
+                    <MudSelect T="string" Value="@context.region" ValueChanged="@(e => context.region = e)">
+                        @foreach (var item in regions)
                         {
                             <MudSelectItem T="string" Value="@item">@item</MudSelectItem>
                         }
@@ -59,6 +55,7 @@
 
 @code {
     ChallongeClient? _client;
+    TournamentDetails currentTournament = new TournamentDetails();
     private bool loading = true;
     private MudTable<Player>? _table;
     List<Player> players = new List<Player>();
@@ -94,14 +91,50 @@
     {
         if (firstRender)
         {
-
+            currentTournamentUrl = _challongeAuth.GetSettings().CurrentTournament;
+            await GetParticipentsViaURL(currentTournamentUrl);
         }
-
     }
 
+    private async Task AddedNewTournament(bool added)
+    {
+        if (added)
+        {
+            currentTournamentUrl = _challongeAuth.GetSettings().CurrentTournament;
+            await GetParticipentsViaURL(currentTournamentUrl);
+            StateHasChanged();
+        }
+    }
+
+    private async Task AddPlayer(Player player)
+    {
+        if (_client == null)
+        {
+            return;
+        }
+
+        try
+        {
+
+            ParticipantInfo participantInfo = new ParticipantInfo
+                {
+                    Name = player.Name,
+                    Email = player.Email
+                };
+            var participant = await _client.CreateParticipantAsync(currentTournamentUrl, participantInfo);
+
+            player.ChallongeId = participant.Id;
+            players.Add(player);
+            await _playerHelper.AddNewPlayer(currentTournament.relatedSheetName, player);
+            StateHasChanged();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+    }
     private async Task HandleUrlAdded(string url)
     {
-
         var currentSettings = _challongeAuth.GetSettings();
 
         var code = GetTournamentCode(url);
@@ -110,12 +143,38 @@
         {
             previousUrls.Add(code, url);
             currentSettings.PreviousTournements = previousUrls;
-
         }
 
         currentSettings.CurrentTournament = code;
         _challongeAuth.SaveSettings(currentSettings);
+
+        // Get the tournament info so we can save it to the settings file. This is so we can at least
+        // access the spreadsheet name as it will error otherwise when trying to get the sheet information
+        // to get the correct sheet info.
+        var settings = _challongeAuth.GetSettings();
+        var tourneyInfo = await _client.GetTournamentByUrlAsync(code);
+        string sheetName = $"{tourneyInfo.Name} - {tourneyInfo.StartAt.Value.Date.ToString("dd/MM/yyyy")}";
+
+        currentTournament = _tournamentInfo.SetTournamentDetails(code, tourneyInfo.Name, sheetName);
+        settings.CurrentTournamentDetails = currentTournament;
+
+        _challongeAuth.SaveSettings(settings);
+
+
+        // Get the participants
         await GetParticipentsViaURL(code);
+
+        // Get the leaderboard information. Through this if the tournament was set up through Challonge, it will create
+        // a new sheet based on that infroamtion.
+        var leaderboard = await _playerHelper.GetLeaderboard(sheetName);
+        LeaderboardHelper leaderboardHelper = new LeaderboardHelper();
+
+        // If the leaderboard is empty, we can add players to the sheet, this is more so if the tournament was set up
+        // on Challonge previously and already has players and data in it.
+        if (leaderboard.Count == 0)
+        {
+            await _playerHelper.AddPlayersToSheet(sheetName, await leaderboardHelper.NewPlayers(players, leaderboard, code, _client));
+        }
     }
 
     string GetTournamentCode(string url)
@@ -189,7 +248,7 @@
 
     async Task AddPlayerFromParticipant(List<Participant> participants)
     {
-
+        List<Player> tempList = new List<Player>();
         foreach (var participant in participants)
         {
             Player p = new Player
@@ -201,8 +260,10 @@
                     CheckInTime = participant.CheckedInAt
                 };
 
-            _playerHelper.AddPlayer(p, "Combined Uk leaderboard");
+            tempList.Add(p);
         }
+
+        _playerHelper.AddPlayers(tempList, currentTournament.relatedSheetName);
     }
 
     public bool HandleCheckIn(bool isCheckedIn)

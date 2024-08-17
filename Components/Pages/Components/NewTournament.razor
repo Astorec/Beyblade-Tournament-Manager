@@ -1,54 +1,124 @@
 @using BeybladeTournamentManager.ApiCalls.Challonge
+@using BeybladeTournamentManager.Helpers
 @using Challonge.Api
 @using Challonge.Objects
 @inject NavigationManager navManger
 @inject IAutentication _challongeAuth
+@inject IPlayerHelper _playerHelper
 
 <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="TogglePopup">Create Tournament</MudButton>
 
 <MudPopover Open="@viewPopup" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter">
-    <MudPaper class="d-flex flex-column justify-center ma-5" Elevation="0">
-        <MudText>Create new Tournament</MudText>
-        <div class="d-flex flex-row gap-2">
-            <MudTextField Label="Tournament Name" @bind-Value="@tName" />
-        </div>
-        <div class="d-flex flex-row gap-2">
-            <MudSelect Label="Tournament Type" @bind-Value="@tType" T="TournamentType">
-                @foreach (TournamentType item in Enum.GetValues(typeof(TournamentType)))
-                {
-                    <MudSelectItem Value="@item" T="TournamentType">@item</MudSelectItem>
-                }
-            </MudSelect>
-        </div> 
-        <div class="d-flex flex-row gap-2">
-            <MudTextField Label="Description" @bind-Value="@tDescription" />
-        </div>
-        <div class="d-flex flex-row gap-2">
-            <MudTextField Label="Start Date" @bind-Value="@StartDate" />
-        </div>
-        <div class="d-flex flex-row gap-2">
-            <MudTextField Label="Check In Duration" @bind-Value="@CheckInDuration" />
-        </div>
-    </MudPaper>
+    @if (addingTournament)
+    {
+        <MudPaper class="d-flex flex-column justify-center ma-5" Elevation="0">
+            <MudText>Adding Tournament...</MudText>
+
+            <MudProgressCircular Class="ma-2" Color="Color.Primary" Size="Size.Medium" />
+        </MudPaper>
+    }
+    else
+    {
+        <MudPaper class="d-flex flex-column justify-center ma-5" Elevation="0">
+            <MudText>Create new Tournament</MudText>
+            <div class="d-flex flex-row gap-2">
+                <MudTextField Label="Tournament Name" @bind-Value="@tName" />
+            </div>
+            <div class="d-flex flex-row gap-2">
+                <MudSelect Label="Tournament Type" @bind-Value="@tType" T="TournamentType">
+                    @foreach (TournamentType item in Enum.GetValues(typeof(TournamentType)))
+                    {
+                        <MudSelectItem Value="@item" T="TournamentType">@item</MudSelectItem>
+                    }
+                </MudSelect>
+            </div>
+            <div class="d-flex flex-row gap-2">
+                <MudTextField Label="Description" @bind-Value="@tDescription" />
+            </div>
+            <div class="d-flex flex-row gap-2">
+                <MudDatePicker Label="Start Date" @bind-Date="tDate" />
+            </div>
+            <div class="d-flex flex-row gap-2">
+                <MudTextField Label="Check In Duration (In Days)" @bind-Value="@CheckInDuration" />
+            </div>
+            <div class="d-flex flex-row justify-space-between mt-4">
+                <div>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="AddNewTournament"> OK</MudButton>
+                </div>
+                <div>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="Cancel"> Cancel</MudButton>
+                </div>
+            </div>
+
+        </MudPaper>
+    }
+
 </MudPopover>
 
 @code {
     bool viewPopup = false;
+    bool addingTournament = false;
     ChallongeClient? _client;
 
     private string tName = "";
     private TournamentType tType;
-    private string tUrl = "";
     private string tDescription = "";
-    private DateTime StartDate;
-    private int CheckInDuration;
-
+    private DateTime? tDate = DateTime.Today.AddDays(2);
+    private int CheckInDuration = 5;
+     [Parameter]
+    public EventCallback<bool> AddedTournament { get; set; }
 
     private async Task AddNewTournament()
     {
+
         if (_client == null)
         {
             _client = _challongeAuth.GetClient();
+        }
+        try
+        {
+            addingTournament = true;
+
+            Console.WriteLine("Adding tournament started");
+            await InvokeAsync(StateHasChanged);
+
+            string sheetName = $"{tName} - {tDate.Value.Date.ToString("dd/MM/yyyy")}";
+            string sanitizedTName = System.Text.RegularExpressions.Regex.Replace(tName, @"[^a-zA-Z0-9_]", "");
+            TournamentInfo tournament = new TournamentInfo
+                {
+                    Name = tName,
+                    TournamentType = tType,
+                    Url = sanitizedTName,
+                    Description = tDescription,
+                    StartAt = tDate,
+                    CheckInDuration = CheckInDuration
+                };
+
+            await _client.CreateTournamentAsync(tournament);
+            await _playerHelper.CreateSheet(sheetName);
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            viewPopup = false;
+            addingTournament = false;
+            Console.WriteLine("Adding tournament finished");
+
+            var settings = _challongeAuth.GetSettings();
+            settings.CurrentTournament = System.Text.RegularExpressions.Regex.Replace(tName, @"[^a-zA-Z0-9_]", "");
+            Uri uri = new Uri("https://challonge.com/" + settings.CurrentTournament);
+            settings.PreviousTournements.Add(settings.CurrentTournament, uri.ToString());
+            settings.CurrentTournamentSheetName = $"{tName} - {tDate.Value.Date.ToString("dd/MM/yyyy")}";
+            _challongeAuth.SaveSettings(settings);
+
+            StateHasChanged();
+
+            // Update the cache
+            await _playerHelper.GetSheets();
         }
 
     }
@@ -59,7 +129,6 @@
             viewPopup = false;
             _client = null;
         }
-
         else
         {
             viewPopup = true;
