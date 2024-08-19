@@ -4,7 +4,8 @@
 @using Challonge.Objects
 @inject NavigationManager navManger
 @inject IAutentication _challongeAuth
-@inject IPlayerHelper _playerHelper
+@inject ISpreadsheetViewModel _spreadsheetVM
+@inject ISettingsViewModel SettingsVM
 
 <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="TogglePopup">Create Tournament</MudButton>
 
@@ -95,7 +96,7 @@
                 };
 
             await _client.CreateTournamentAsync(tournament);
-            await _playerHelper.CreateSheet(sheetName);
+            await _spreadsheetVM.CreateSheet(sheetName);
 
         }
         catch (Exception ex)
@@ -108,17 +109,17 @@
             addingTournament = false;
             Console.WriteLine("Adding tournament finished");
 
-            var settings = _challongeAuth.GetSettings();
+            var settings = SettingsVM.GetSettings;
             settings.CurrentTournament = System.Text.RegularExpressions.Regex.Replace(tName, @"[^a-zA-Z0-9_]", "");
             Uri uri = new Uri("https://challonge.com/" + settings.CurrentTournament);
             settings.PreviousTournements.Add(settings.CurrentTournament, uri.ToString());
             settings.CurrentTournamentSheetName = $"{tName} - {tDate.Value.Date.ToString("dd/MM/yyyy")}";
-            _challongeAuth.SaveSettings(settings);
+            SettingsVM.SaveSettings(settings);
 
             StateHasChanged();
 
             // Update the cache
-            await _playerHelper.GetSheets();
+            await _spreadsheetVM.GetSheets();
         }
 
     }

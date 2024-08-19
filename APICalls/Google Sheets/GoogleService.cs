@@ -3,6 +3,8 @@ using BeybladeTournamentManager.Config;
 using BeybladeTournamentManager.ApiCalls.Challonge;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Sheets.v4;
+using NuGet.Configuration;
+using BeybladeTournamentManager.Components.Pages.ViewModels;
 
 namespace BeybladeTournamentManager.ApiCalls.Google
 {
@@ -13,10 +15,10 @@ namespace BeybladeTournamentManager.ApiCalls.Google
         private static readonly string[] Scopes = { SheetsService.Scope.Spreadsheets };
 
         private static SheetsService _service;
-        public GoogleService(IAutentication auth)        
+        public GoogleService(IAutentication auth, ISettingsViewModel settingsViewModel)        
         {
             _auth = auth;
-            _settings = _auth.GetSettings();
+            _settings = settingsViewModel.GetSettings;
             GoogleCredential credential;
             
             // Check AppSettings for GoogleCredLocation

@@ -3,8 +3,10 @@ using BeybladeTournamentManager.ApiCalls.Challonge;
 using BeybladeTournamentManager.ApiCalls.Challonge.Data;
 using BeybladeTournamentManager.ApiCalls.Google;
 using BeybladeTournamentManager.Components;
+using BeybladeTournamentManager.Components.Pages.ViewModels;
 using BeybladeTournamentManager.Config;
 using BeybladeTournamentManager.Helpers;
+using BeybladeTournamentManager.Components;
 using MudBlazor.Services;
 
 
@@ -26,9 +28,22 @@ if (File.Exists(userSettingsPath))
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddMudServices();
+
+
+builder.Services.AddSingleton<Challonge.Api.ChallongeCredentials>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var apiKey = configuration.GetValue<string>("ChallongeUsername");
+    var username = configuration.GetValue<string>("ChallongeAPIKey");
+    return new Challonge.Api.ChallongeCredentials(username, apiKey);
+});
+builder.Services.AddScoped<ISettingsViewModel, SettingsViewModel>();
+builder.Services.AddScoped<IPlayersViewModel, PlayersViewModel>();
+builder.Services.AddScoped<ITournamentViewModel, TournamentViewModel>();
+builder.Services.AddScoped<ISpreadsheetViewModel, SpreadsheetViewModel>();
+
 builder.Services.AddScoped<IAutentication, Authentication>();
 builder.Services.AddSingleton<IGoogleServiceFactory, GoogleServiceFactory>();
-builder.Services.AddSingleton<IPlayerHelper, PlayerHelper>();
 builder.Services.AddScoped<IGoogleService, GoogleService>();
 builder.Services.AddScoped<IMatches, Matches>();
 builder.Services.AddScoped<ITournamentManager, TournamentManager>();

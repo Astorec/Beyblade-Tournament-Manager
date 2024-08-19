@@ -1,0 +1,76 @@
+@page "/"
+@inject IPlayersViewModel PlayersVM
+@inject ISettingsViewModel SettingsVM
+@inject ITournamentViewModel TournamentVM
+@using BeybladeTournamentManager.ApiCalls.Challonge
+@using BeybladeTournamentManager.ApiCalls.Challonge.Data
+@using BeybladeTournamentManager.Helpers
+@using BeybladeTournamentManager.Components.Pages.Components
+@using Challonge.Api
+@using Challonge.Objects
+@using System.Text.RegularExpressions
+@inject IAutentication _challongeAuth
+@inject ISpreadsheetViewModel _spreadsheetVM
+@inject ITournamentManager _tournamentInfo
+<MudPaper class="d-flex flex-coloumn justify-center gap-3 mt-3" Elevation="0">
+    <NewTournament AddedTournament="TournamentVM.AddedNewTournament" />
+    <AddTournemantByUrl PreviousUrls="SettingsVM.GetSettings.PreviousTournements"
+        OnUrlSelected="TournamentVM.HandleUrlAdded" />
+
+    @if (SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl != "")
+    {
+
+        <AddNewPlayer PlayerToAdd="PlayersVM.AddPlayer" />
+    }
+    </MudPaper>
+    <MudPaper class="d-flex mt-2" Width="100%">
+        <MudContainer MaxWidth="MaxWidth.Medium">
+            <MudTable T="Player" Items="@PlayersVM.Players">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Region</MudTh>
+                    <MudTh>Check-In</MudTh>
+                    <MudTh>Check-In Time</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Name</MudTd>
+                    <MudTd>
+                        <MudSelect T="string" Value="@context.region"
+                            ValueChanged="@(EventCallback.Factory.Create<string>(this, (string e) => context.region = e))">
+                            @foreach (var item in PlayersVM.Regions)
+                        {
+                            <MudSelectItem T="string" Value="@item">@item</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudTd>
+                <MudTd>
+                    <MudSwitch T="bool" Value="@context.CheckInState"
+                        @onclick="@(e => PlayersVM.OnCheckInStateChanged(context))" Color="Color.Primary" />
+                </MudTd>
+                <MudTd>
+                    <MudText>@context.CheckInTime</MudText>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudContainer>
+</MudPaper>
+
+@code {
+    private string selectedRegion;
+
+    protected override void OnInitialized()
+    {
+        PlayersVM.OnStateChanged += StateHasChanged;
+    }
+
+    private void OnRegionChanged(string newRegion)
+    {
+        selectedRegion = newRegion;
+        PlayersVM.HandleCheckInState(true); // Example usage
+    }
+
+    public void Dispose()
+    {
+        PlayersVM.OnStateChanged -= StateHasChanged;
+    }
+}

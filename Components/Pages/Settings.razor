@@ -3,6 +3,7 @@
 @using BeybladeTournamentManager.Config
 @using Challonge.Api
 @inject IAutentication _challongeAuth
+@inject ISettingsViewModel SettingsVM
 
 <MudPaper class="mt-2" Width="100%">
     <MudContainer Fixed="true">
@@ -53,7 +54,7 @@
                 ChallongeUsername = CUsername
             };
         
-        _challongeAuth.SaveSettings(settings);
+        SettingsVM.SaveSettings(settings);
     }
 
     protected override async Task OnInitializedAsync()
@@ -65,3 +66,4 @@
     }
 
 }
+    using NuGet.Configuration;

@@ -4,6 +4,7 @@ using BeybladeTournamentManager.Config;
 using Challonge.Api;
 using Challonge.Objects;
 using BeybladeTournamentManager.Helpers;
+using BeybladeTournamentManager.Components.Pages.ViewModels;
 
 
 namespace BeybladeTournamentManager.Helpers
@@ -81,10 +82,10 @@ namespace BeybladeTournamentManager.Helpers
             return players;
         }
 
-        public async Task UpdatePlayersFromMatch(Match match, IPlayerHelper playerHelper, AppSettings settings)
+        public async Task UpdatePlayersFromMatch(Match match, ISpreadsheetViewModel spreadsheetViewModel, AppSettings settings)
         {
             // Get the cached Leaderboard
-            var leaderboard = await playerHelper.GetLeaderboard(settings.CurrentTournamentDetails.relatedSheetName);
+            var leaderboard = await spreadsheetViewModel.GetLeaderboard(settings.CurrentTournamentDetails.relatedSheetName);
 
             // update the leaderboard
             var player1 = leaderboard.Find(x => x.ChallongeId == match.Player1Id);
@@ -111,13 +112,13 @@ namespace BeybladeTournamentManager.Helpers
             SortRank(leaderboard);
 
             // Update the leaderboard
-            await playerHelper.UpdatePlayerInSheet(settings.CurrentTournamentDetails.relatedSheetName, leaderboard);
+            await spreadsheetViewModel.UpdatePlayers(settings.CurrentTournamentDetails.relatedSheetName, leaderboard);
         }
 
-        public async Task UndoUpdateFromMatch(Match match, IPlayerHelper playerHelper, AppSettings settings)
+        public async Task UndoUpdateFromMatch(Match match, ISpreadsheetViewModel spreadsheetViewModel, AppSettings settings)
         {
             // Get the cached Leaderboard
-            var leaderboard = await playerHelper.GetLeaderboard(settings.CurrentTournamentDetails.relatedSheetName);
+            var leaderboard = await spreadsheetViewModel.GetLeaderboard(settings.CurrentTournamentDetails.relatedSheetName);
 
             // update the leaderboard
             var player1 = leaderboard.Find(x => x.ChallongeId == match.Player1Id);
@@ -144,7 +145,7 @@ namespace BeybladeTournamentManager.Helpers
             SortRank(leaderboard);
 
             // Update the leaderboard
-            await playerHelper.UpdatePlayerInSheet(settings.CurrentTournamentDetails.relatedSheetName, leaderboard);
+            await spreadsheetViewModel.UpdatePlayers(settings.CurrentTournamentDetails.relatedSheetName, leaderboard);
         }
         private List<Player> SortRank(List<Player> players)
         {

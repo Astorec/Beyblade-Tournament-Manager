@@ -6,8 +6,9 @@
 @using BeybladeTournamentManager.Helpers
 
 @inject IGoogleService _googleService
-@inject IPlayerHelper _playerHelper
+@inject ISpreadsheetViewModel _spreadsheetVM
 @inject IAutentication _challongeAuth
+@inject ISettingsViewModel SettingsVM
 @if (loading)
 {
     <MudPaper class="d-flex flex-coloumn justify-center gap-3" Elevation="0">
@@ -80,10 +81,10 @@ else
     {
         if (firstRender)
         {
-            settings = _challongeAuth.GetSettings();
-            players = _playerHelper.GetLeaderboard(settings.CurrentTournamentDetails.relatedSheetName).Result;
-            leaderboards  = _playerHelper.GetSheetsList();
-            selectedLeaderboard = leaderboards.FirstOrDefault();
+            settings = SettingsVM.GetSettings;
+            players = _spreadsheetVM.GetLeaderboard(settings.CurrentTournamentDetails.relatedSheetName).Result;
+            leaderboards  = _spreadsheetVM.Leaderboard;
+            selectedLeaderboard = leaderboards.Where(l => l == settings.CurrentTournamentDetails.relatedSheetName).FirstOrDefault();
             loading = false;
             StateHasChanged();
         }
@@ -97,7 +98,7 @@ else
     private async Task LoadLeaderboard()
     {
         players.Clear();
-        var leaderboard = await _playerHelper.GetLeaderboard(selectedLeaderboard);
+        var leaderboard = await _spreadsheetVM.GetLeaderboard(selectedLeaderboard);
         players = leaderboard.OrderBy(p => p.LeaderboardRank, new LeaderboardRankComparer()).ToList();
         StateHasChanged();
     }

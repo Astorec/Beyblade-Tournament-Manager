@@ -10,7 +10,8 @@
 @inject IMatches _matches
 @inject IParticipants _participants
 @inject ITournamentManager _tournamentInfo
-@inject IPlayerHelper _playerHelper
+@inject ISpreadsheetViewModel _spreadsheetVM
+@inject ISettingsViewModel SettingsVM
 
 <MudPaper Elevation="0">
     <MudContainer>
@@ -206,7 +207,7 @@
     protected override async Task OnInitializedAsync()
     {
         _client = _challongeAuth.GetClient();
-        tournamentUrl = _challongeAuth.GetSettings().CurrentTournament;
+        tournamentUrl = SettingsVM.GetSettings.CurrentTournament;
 
     }
 
@@ -356,7 +357,7 @@
         }        
 
         await _client.UpdateMatchAsync(match, matchInfo);
-        await leaderboardHelper.UpdatePlayersFromMatch(match, _playerHelper, _challongeAuth.GetSettings());
+        await leaderboardHelper.UpdatePlayersFromMatch(match, _spreadsheetVM, SettingsVM.GetSettings);
         await RefreshData();        
 
         await InvokeAsync(StateHasChanged);      
@@ -365,7 +366,7 @@
     public async Task ReopenMatch(Challonge.Objects.Match match)
     {
           LeaderboardHelper leaderboardHelper = new LeaderboardHelper();
-          await leaderboardHelper.UndoUpdateFromMatch(match, _playerHelper, _challongeAuth.GetSettings());
+          await leaderboardHelper.UndoUpdateFromMatch(match, _spreadsheetVM, SettingsVM.GetSettings);
         await _client.ReopenMatchAsync(match);
         var index = matches.FindIndex(m => m.Id == match.Id);
           await RefreshData();        
