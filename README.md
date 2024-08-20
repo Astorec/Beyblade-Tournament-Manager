@@ -22,17 +22,26 @@ If you have any requests, add a new Issue and set the Lable to Feature request a
 | ----------- | ----------- | ----------- | 
 | List Challonge Players | Have a list of players displayed from the Challonge API | <ul><li>[x] </li></ul>|
 | Enable Check-in | Allow participents to be checked in via app and send to CHallonge API | <ul><li>[x] </li></ul>|
-| Undo Check-in | Allow parctipents to be un-checked-in(?) in the event of an accidental check-in | <ul><li>[ ] </li></ul>|
-| Add New Participent | Allow participancts to be added on site and updated on Challonge | <ul><li>[ ] </li></ul>
-| Add Region Info | Add region selection for players and have the info taken or saved to Sheets | <ul><li>[ ] </li></ul>
+| Undo Check-in | Allow parctipents to be un-checked-in(?) in the event of an accidental check-in | <ul><li>[x] </li></ul>|
+| Add New Participent | Allow participancts to be added on site and updated on Challonge | <ul><li>[x] </li></ul>
+| Add Region Info | Add region selection for players and have the info taken or saved to Sheets | <ul><li>[x] </li></ul>
 | Add Brackets | Add brackekts with data pulled from Challonge | <ul><li>[x] </li></ul>|
-| Push Modified Data From brackets | Allow data to be updated from the web app to Challonge | <ul><li>[ ] </li></ul>|
-| Google Sheets Intergration | Setup the API to Google Sheets | <ul><li>[ ] </li></ul>|
-| Display Leaderboards | Display leaderboard formatted from Google Sheets | <ul><li>[ ] </li></ul>|
-| Add new Player to Leaderboard | If a user isn't found on the leaderboard table Add them (Note: Might be worth adding the Challonge ID in here too that is used on the API so that it may be possible to check for any name changes)| <ul><li>[ ] </li></ul>|
-| Auto update Leaderboards | Update leaderboards based on match Results | <ul><li>[ ] </li></ul>|
-| Add Local Settings | This has already been done for Challonge related stuff, but google sheets info needs updated on there| <ul><li>[ ] </li></ul>|
-| Add Offline Mode | Add an offline mode so that in the event that there is no internet connection, data from the tournement can be stored and then pushed up once there is a connection | <ul><li>[ ] </li></ul>
+| Push Modified Data From brackets | Allow data to be updated from the web app to Challonge | <ul><li>[x] </li></ul>|
+| Google Sheets Intergration | Setup the API to Google Sheets | <ul><li>[x] </li></ul>|
+| Display Leaderboards | Display leaderboard formatted from Google Sheets | <ul><li>[x] </li></ul>|
+| Add new Player to Leaderboard | If a user isn't found on the leaderboard table Add them (Note: Might be worth adding the Challonge ID in here too that is used on the API so that it may be possible to check for any name changes)| <ul><li>[x] </li></ul>|
+| Auto update Leaderboards | Update leaderboards based on match Results | <ul><li>[x] </li></ul>|
+| Add Local Settings | This has already been done for Challonge related stuff, but google sheets info needs updated on there| <ul><li>[x] </li></ul>|
+| Sort tables after updating | Update the tables based on rating | <ul><li>[ ] </li></ul> |
+| On completion of a tournament update main sheet | Need to see how this works as it uses a table so I'm not sure if I can update this data, if I can't do it with that I'll shelf this and make up another solution | <ul><li>[ ] </li></ul> |
+| Generate Refresh Tokens | Need to be able to handle the refresh of tokens so that when the Access Token expries we can refresh it or prompt for a login | <ul><li>[ ] </li></ul> |
+| Add Unit Tests | Always good to have and should really start adding it once this is ready for putting out for testing | <ul><li>[ ] </li></ul>
+
+#Shelved Features
+
+| Feature | Description |
+| ----------- | ----------- | 
+| Add Offline Mode | ~~Add an offline mode so that in the event that there is no internet connection, data from the tournement can be stored and then pushed up once there is a connection~~ Not sure how likely this will be due to the nature of the app needing the constant connection to update Sheets and Challonge. It might be worth looking into eventually so that it can be done and then have the information updated once an internet connection is made.|
 
 
 
