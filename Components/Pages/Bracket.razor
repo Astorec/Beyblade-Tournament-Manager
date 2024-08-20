@@ -12,6 +12,7 @@
 @inject ITournamentManager _tournamentInfo
 @inject ISpreadsheetViewModel _spreadsheetVM
 @inject ISettingsViewModel SettingsVM
+@inject IPlayersViewModel _playersVM
 
 <MudPaper Elevation="0">
     <MudContainer>
@@ -207,7 +208,7 @@
     protected override async Task OnInitializedAsync()
     {
         _client = _challongeAuth.GetClient();
-        tournamentUrl = SettingsVM.GetSettings.CurrentTournament;
+        tournamentUrl = SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl;
 
     }
 
@@ -229,6 +230,8 @@
 
     private async Task LoadInitalDataAsync()
     {
+        Console.WriteLine("Loading Initial Data");
+        tournamentUrl = SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl;
         matches = await _matches.GetMatches(tournamentUrl);
         participants = await _participants.GetParticipants(tournamentUrl);
 
@@ -274,6 +277,7 @@
 
     private async Task RefreshData()
     {
+         tournamentUrl = SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl;
         // Check if the client is null
         if (_client != null)
         {
@@ -294,6 +298,7 @@
     }
     public async Task<string> GetPlayerName(long? pid)
     {
+         tournamentUrl = SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl;
         try
         {
             var participant = await _participants.GetParticipantById(tournamentUrl, Convert.ToInt32(pid.Value));
@@ -305,7 +310,6 @@
             return "Player Not Found";
         }
     }
-
     public async Task<string> GetPlayer(Challonge.Objects.Match match, long? id)
     {
         if(match.State != MatchState.Pending && id.HasValue)
@@ -357,7 +361,8 @@
         }        
 
         await _client.UpdateMatchAsync(match, matchInfo);
-        await leaderboardHelper.UpdatePlayersFromMatch(match, _spreadsheetVM, SettingsVM.GetSettings);
+        match = await _client.GetMatchAsync(tournamentUrl, match.Id);
+        await leaderboardHelper.UpdatePlayersFromMatch(match, _spreadsheetVM,_playersVM, SettingsVM.GetSettings);
         await RefreshData();        
 
         await InvokeAsync(StateHasChanged);      
@@ -365,14 +370,20 @@
 
     public async Task ReopenMatch(Challonge.Objects.Match match)
     {
-          LeaderboardHelper leaderboardHelper = new LeaderboardHelper();
-          await leaderboardHelper.UndoUpdateFromMatch(match, _spreadsheetVM, SettingsVM.GetSettings);
-        await _client.ReopenMatchAsync(match);
-        var index = matches.FindIndex(m => m.Id == match.Id);
-          await RefreshData();        
-
+         var index = matches.FindIndex(m => m.Id == match.Id);
         var updatedMatch = await _client.GetMatchAsync(tournamentUrl, match.Id);
         matches[index] = updatedMatch;
+
+         await _client.ReopenMatchAsync(match);
+        LeaderboardHelper leaderboardHelper = new LeaderboardHelper();
+
+        tournamentUrl = SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl;
+        await leaderboardHelper.UndoUpdateFromMatch(match, _spreadsheetVM, _playersVM, SettingsVM.GetSettings);
+       
+       
+        await RefreshData();        
+
+      
 
         await InvokeAsync(StateHasChanged);      
     }
@@ -406,6 +417,7 @@
 
     private async Task<bool> IsWinner(long matchId, long? playerId)
     {
+         tournamentUrl = SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl;
         var match = await _client.GetMatchAsync(tournamentUrl, matchId);
         var winner = match.WinnerId;
         return winner == playerId;

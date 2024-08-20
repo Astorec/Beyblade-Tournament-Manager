@@ -26,7 +26,7 @@ else
             </MudPaper>
             <MudPaper Class="flex-grow-1 py-8 mt-1" Width="90%" Elevation="0">
                     <MudSelect T="string" Value="@selectedLeaderboard" ValueChanged="OnLeaderboardChanged">
-                        @foreach (var item in leaderboards)
+                        @foreach (var item in _spreadsheetVM.Leaderboard)
                         {
                             <MudSelectItem T="string" Value="@item">@item</MudSelectItem>
                         }
@@ -83,7 +83,6 @@ else
         {
             settings = SettingsVM.GetSettings;
             players = _spreadsheetVM.GetLeaderboard(settings.CurrentTournamentDetails.relatedSheetName).Result;
-            leaderboards  = _spreadsheetVM.Leaderboard;
             selectedLeaderboard = leaderboards.Where(l => l == settings.CurrentTournamentDetails.relatedSheetName).FirstOrDefault();
             loading = false;
             StateHasChanged();

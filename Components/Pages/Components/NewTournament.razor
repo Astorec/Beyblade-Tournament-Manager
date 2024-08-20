@@ -1,4 +1,5 @@
 @using BeybladeTournamentManager.ApiCalls.Challonge
+@using BeybladeTournamentManager.ApiCalls.Challonge.Data
 @using BeybladeTournamentManager.Helpers
 @using Challonge.Api
 @using Challonge.Objects
@@ -66,7 +67,7 @@
     private string tDescription = "";
     private DateTime? tDate = DateTime.Today.AddDays(2);
     private int CheckInDuration = 5;
-     [Parameter]
+    [Parameter]
     public EventCallback<bool> AddedTournament { get; set; }
 
     private async Task AddNewTournament()
@@ -88,7 +89,6 @@
             TournamentInfo tournament = new TournamentInfo
                 {
                     Name = tName,
-                    TournamentType = tType,
                     Url = sanitizedTName,
                     Description = tDescription,
                     StartAt = tDate,
@@ -110,10 +110,19 @@
             Console.WriteLine("Adding tournament finished");
 
             var settings = SettingsVM.GetSettings;
-            settings.CurrentTournament = System.Text.RegularExpressions.Regex.Replace(tName, @"[^a-zA-Z0-9_]", "");
-            Uri uri = new Uri("https://challonge.com/" + settings.CurrentTournament);
-            settings.PreviousTournements.Add(settings.CurrentTournament, uri.ToString());
-            settings.CurrentTournamentSheetName = $"{tName} - {tDate.Value.Date.ToString("dd/MM/yyyy")}";
+            var details = new TournamentDetails();
+            details.tournamentUrl = System.Text.RegularExpressions.Regex.Replace(tName, @"[^a-zA-Z0-9_]",
+            "");
+            Uri uri = new Uri("https://challonge.com/" + details.tournamentUrl);
+
+            if(settings.PreviousTournements == null)
+            {
+                settings.PreviousTournements = new Dictionary<string, string>();
+            }
+
+            settings.PreviousTournements.Add(details.tournamentUrl, uri.ToString());
+            details.relatedSheetName = $"{tName} - {tDate.Value.Date.ToString("dd/MM/yyyy")}";
+            settings.CurrentTournamentDetails = details;
             SettingsVM.SaveSettings(settings);
 
             StateHasChanged();

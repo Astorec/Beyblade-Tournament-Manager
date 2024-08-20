@@ -17,6 +17,7 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
         private readonly AppSettings _appSettings;
         Dictionary<string, List<Player>> playerCache = new Dictionary<string, List<Player>>();
         public event Action OnStateChanged;
+        private bool _isLoading = true;
         public PlayersViewModel(IAutentication auth, ISettingsViewModel settingsViewModel, ISpreadsheetViewModel spreadsheetViewModel)
         {
             _autentication = auth;
@@ -117,14 +118,14 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
 
                         ClearPlayers();
                         await AddPlayerFromParticipant(participantsList);
-                      
+
                         // Create a new list instance to avoid reference issues
                         var playersCopy = new List<Player>(_players);
                         playerCache[code] = playersCopy;
                     }
 
 
-                    var currentSettings = _appSettings;
+                    var currentSettings = _settingsViewModel.GetSettings;
                     currentSettings.CurrentTournamentDetails.tournamentUrl = code;
                     _settingsViewModel.SaveSettings(currentSettings);
                     OnStateChanged?.Invoke();
@@ -139,6 +140,8 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
 
         public async Task AddPlayerFromParticipant(List<Participant> participants)
         {
+            isLoading = true;
+            OnStateChanged?.Invoke();
             List<Player> tempList = new List<Player>();
             foreach (var participant in participants)
             {
@@ -151,8 +154,10 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                     CheckInTime = participant.CheckedInAt
                 };
 
-               _spreadsheetViewModel.AddNewPlayer(_appSettings.CurrentTournamentDetails.relatedSheetName, p);
+                _spreadsheetViewModel.AddNewPlayer(_appSettings.CurrentTournamentDetails.relatedSheetName, p);
+                _players.Add(p);
             }
+            isLoading = false;
             OnStateChanged?.Invoke();
         }
 
@@ -177,7 +182,6 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                     _players[index].CheckInState = true;
                     _players[index].CheckInTime = DateTime.Now;
                     await _client.CheckInParticipantAsync(participant);
-                    OnStateChanged?.Invoke();
                 }
                 else
                 {
@@ -185,8 +189,8 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                     _players[index].CheckInTime = null;
 
                     await _client.UndoCheckInParticipantAsync(participant);
-                    OnStateChanged?.Invoke();
                 }
+                OnStateChanged?.Invoke();
             }
             catch (Exception e)
             {
@@ -232,7 +236,7 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
         {
             get
             {
-              return _players;
+                return _players;
             }
             set
             {
@@ -245,11 +249,25 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
         {
             get
             {
+                OnStateChanged?.Invoke();
                 return playerCache;
             }
             set
             {
                 playerCache = value;
+            }
+        }
+
+        public bool isLoading
+        {
+            get
+            {
+                return _isLoading;
+            }
+            set
+            {
+                _isLoading = value;
+                OnStateChanged?.Invoke();
             }
         }
         protected void NotifyStateChanged() => OnStateChanged?.Invoke();

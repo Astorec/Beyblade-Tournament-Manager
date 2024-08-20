@@ -6,10 +6,10 @@ using BeybladeTournamentManager.Components;
 using BeybladeTournamentManager.Components.Pages.ViewModels;
 using BeybladeTournamentManager.Config;
 using BeybladeTournamentManager.Helpers;
-using BeybladeTournamentManager.Components;
 using MudBlazor.Services;
-
-
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,7 +28,46 @@ if (File.Exists(userSettingsPath))
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddMudServices();
+builder.Services.AddControllers();
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+});
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
+})
+.AddCookie(options =>
+{
+    options.LoginPath = "/api/auth/google-login";
+    options.LogoutPath = "/api/auth/logout";
+    options.ExpireTimeSpan = TimeSpan.FromDays(30); // Set the cookie expiration time
+    options.SlidingExpiration = true;
+})
+    .AddGoogle(options =>
+    {
+        IConfigurationSection googleAuthNSection =
+            builder.Configuration.GetSection("Authentication:Google");
 
+        options.ClientId = googleAuthNSection["ClientId"];
+        options.ClientSecret = googleAuthNSection["ClientSecret"];
+        options.Scope.Add("email");
+        options.Scope.Add("profile");
+        options.Scope.Add("https://www.googleapis.com/auth/drive.file");
+        options.Scope.Add("https://www.googleapis.com/auth/spreadsheets");
+        options.Scope.Add("https://www.googleapis.com/auth/drive");
+        options.SaveTokens = true;
+        options.Events.OnRedirectToAuthorizationEndpoint = context =>
+        {
+            context.Response.Redirect(context.RedirectUri);
+            return Task.CompletedTask;
+        };
+    });
 
 builder.Services.AddSingleton<Challonge.Api.ChallongeCredentials>(sp =>
 {
@@ -37,7 +76,11 @@ builder.Services.AddSingleton<Challonge.Api.ChallongeCredentials>(sp =>
     var username = configuration.GetValue<string>("ChallongeAPIKey");
     return new Challonge.Api.ChallongeCredentials(username, apiKey);
 });
+
+
 builder.Services.AddScoped<ISettingsViewModel, SettingsViewModel>();
+builder.Services.AddAuthorizationCore();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IPlayersViewModel, PlayersViewModel>();
 builder.Services.AddScoped<ITournamentViewModel, TournamentViewModel>();
 builder.Services.AddScoped<ISpreadsheetViewModel, SpreadsheetViewModel>();
@@ -62,7 +105,6 @@ if (!app.Environment.IsDevelopment())
 var configFilePath = Path.Combine(app.Environment.ContentRootPath, "appsettings.user.json");
 if (!File.Exists(configFilePath))
 {
-
     var defaultSettings = new AppSettings
     {
         ChallongeAPIKey = "",
@@ -76,10 +118,18 @@ if (!File.Exists(configFilePath))
 }
 
 app.UseHttpsRedirection();
-
 app.UseStaticFiles();
+
+app.UseRouting();
+
+app.UseSession();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseMiddleware<AccessTokenMiddleware>();
+
 app.UseAntiforgery();
 
+app.MapControllers();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

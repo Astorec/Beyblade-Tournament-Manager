@@ -18,6 +18,7 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
         bool HandleCheckInState(bool isCheckedIn);
         Dictionary<string, List<Player>> PlayerCache { get; set; }
 
+        bool isLoading { get; set; }
         List<Player> Players { get; set;}
         List<string> Regions { get; }
     }

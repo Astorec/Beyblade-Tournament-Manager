@@ -16,6 +16,7 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
         Task AddNewPlayer(string sheetName, Player player);
         Task UpdatePlayers(string sheetName, List<Player> players);
         Task<List<Player>> GetLeaderboard(string sheetTitle);
+        Task SortSheet(string sheetTitle);
         List<string> Leaderboard { get; }
     }
 }

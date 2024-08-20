@@ -1,15 +1,36 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
+@inject ISettingsViewModel SettingsVM
 
 <MudTabs Outlined="false" Centered="true" Color="Color.Primary" @ref="tabs">
-    <MudTabPanel Text="Check-In" @ref="checkInTab" Icon="@Icons.Material.Filled.FactCheck"
-        OnClick="@(async () => await NavigateTo("/"))" />
-    <MudTabPanel Text="Bracket" @ref="bracketTab" Icon="@Icons.Material.Filled.SportsEsports"
-        OnClick="@(async () => await NavigateTo("/Bracket"))" />
-    <MudTabPanel Text="Leaderboard" @ref="leaderboardTab" Icon="@Icons.Material.Filled.Leaderboard"
-        OnClick="@(async () => await NavigateTo("/Leaderboard"))" />
-    <MudTabPanel Text="Settings" @ref="settingsTab" Icon="@Icons.Material.Filled.Settings"
-        OnClick="@(async () => await NavigateTo("/Settings"))" />
+    @if (string.IsNullOrEmpty(SettingsVM.GetSettings.ChallongeUsername) ||
+    string.IsNullOrEmpty(SettingsVM.GetSettings.ChallongeAPIKey))
+    {
+        <MudTabPanel Text="Settings" @ref="settingsTab" Icon="@Icons.Material.Filled.Settings"
+            OnClick="@(async () => await NavigateTo("/Settings"))" />
+    }
+    else if (string.IsNullOrEmpty(SettingsVM.GetSettings.SheetID))
+    {
+        <MudTabPanel Text="Check-In" @ref="checkInTab" Icon="@Icons.Material.Filled.FactCheck"
+            OnClick="@(async () => await NavigateTo("/"))" />
+        <MudTabPanel Text="Bracket" @ref="bracketTab" Icon="@Icons.Material.Filled.SportsEsports"
+            OnClick="@(async () => await NavigateTo("/Bracket"))" />
+        <MudTabPanel Text="Settings" @ref="settingsTab" Icon="@Icons.Material.Filled.Settings"
+            OnClick="@(async () => await NavigateTo("/Settings"))" />
+    }
+    else
+    {
+        <MudTabPanel Text="Check-In" @ref="checkInTab" Icon="@Icons.Material.Filled.FactCheck"
+            OnClick="@(async () => await NavigateTo("/"))" />
+        <MudTabPanel Text="Bracket" @ref="bracketTab" Icon="@Icons.Material.Filled.SportsEsports"
+            OnClick="@(async () => await NavigateTo("/Bracket"))" />
+        <MudTabPanel Text="Leaderboard" @ref="leaderboardTab" Icon="@Icons.Material.Filled.Leaderboard"
+            OnClick="@(async () => await NavigateTo("/Leaderboard"))" />
+        <MudTabPanel Text="Settings" @ref="settingsTab" Icon="@Icons.Material.Filled.Settings"
+            OnClick="@(async () => await NavigateTo("/Settings"))" />
+    }
+
+
 </MudTabs>
 
 @code {
@@ -27,5 +48,5 @@
         NavigationManager.NavigateTo(url);
     }
 
-    
+
 }

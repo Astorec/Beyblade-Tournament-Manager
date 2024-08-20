@@ -5,25 +5,40 @@
 @using BeybladeTournamentManager.ApiCalls.Challonge
 @using BeybladeTournamentManager.ApiCalls.Challonge.Data
 @using BeybladeTournamentManager.Helpers
+@using Microsoft.AspNetCore.Components.Authorization
+@using BeybladeTournamentManager.Config
 @using BeybladeTournamentManager.Components.Pages.Components
 @using Challonge.Api
 @using Challonge.Objects
 @using System.Text.RegularExpressions
+@inject NavigationManager navManger
 @inject IAutentication _challongeAuth
 @inject ISpreadsheetViewModel _spreadsheetVM
 @inject ITournamentManager _tournamentInfo
-<MudPaper class="d-flex flex-coloumn justify-center gap-3 mt-3" Elevation="0">
+@inject AuthenticationStateProvider _authStateProvider
+
+@if (PlayersVM.isLoading)
+{
+    <div class="d-flex justify-center pt-5">
+
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+</div>
+}
+else
+{
+    <MudPaper class="d-flex flex-coloumn justify-center gap-3 mt-3" Elevation="0">
     <NewTournament AddedTournament="TournamentVM.AddedNewTournament" />
     <AddTournemantByUrl PreviousUrls="SettingsVM.GetSettings.PreviousTournements"
         OnUrlSelected="TournamentVM.HandleUrlAdded" />
 
-    @if (SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl != "")
-    {
+    @if (SettingsVM.GetSettings?.CurrentTournamentDetails?.tournamentUrl != null &&
+       SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl != "")
+        {
 
-        <AddNewPlayer PlayerToAdd="PlayersVM.AddPlayer" />
-    }
-    </MudPaper>
-    <MudPaper class="d-flex mt-2" Width="100%">
+            <AddNewPlayer PlayerToAdd="PlayersVM.AddPlayer" />
+        }
+        </MudPaper>
+    <MudPaper class="d-flex mt-2 " Width="100%">
         <MudContainer MaxWidth="MaxWidth.Medium">
             <MudTable T="Player" Items="@PlayersVM.Players">
                 <HeaderContent>
@@ -38,29 +53,52 @@
                         <MudSelect T="string" Value="@context.region"
                             ValueChanged="@(EventCallback.Factory.Create<string>(this, (string e) => context.region = e))">
                             @foreach (var item in PlayersVM.Regions)
-                        {
-                            <MudSelectItem T="string" Value="@item">@item</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudTd>
-                <MudTd>
-                    <MudSwitch T="bool" Value="@context.CheckInState"
-                        @onclick="@(e => PlayersVM.OnCheckInStateChanged(context))" Color="Color.Primary" />
-                </MudTd>
-                <MudTd>
-                    <MudText>@context.CheckInTime</MudText>
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
-    </MudContainer>
-</MudPaper>
+                            {
+                                <MudSelectItem T="string" Value="@item">@item</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudTd>
+                    <MudTd>
+                        <MudSwitch T="bool" Value="@context.CheckInState"
+                            @onclick="@(e => PlayersVM.OnCheckInStateChanged(context))" Color="Color.Primary" />
+                    </MudTd>
+                    <MudTd>
+                        <MudText>@context.CheckInTime</MudText>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+
+
+        </MudContainer>
+    </MudPaper>
+}
 
 @code {
     private string selectedRegion;
-
+    bool isLoading = true;
     protected override void OnInitialized()
     {
         PlayersVM.OnStateChanged += StateHasChanged;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (string.IsNullOrEmpty(SettingsVM.GetSettings.ChallongeAPIKey))
+            {
+                navManger.NavigateTo("/settings");
+            }
+            else
+            {
+                if (SettingsVM.GetSettings.CurrentTournamentDetails != null)
+                    PlayersVM.GetParticipentsViaURL(SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl);
+
+                _spreadsheetVM.GetSheets().Wait();
+
+                PlayersVM.isLoading = false;
+            }
+        }
     }
 
     private void OnRegionChanged(string newRegion)

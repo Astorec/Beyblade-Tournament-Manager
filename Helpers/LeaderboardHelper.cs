@@ -82,15 +82,18 @@ namespace BeybladeTournamentManager.Helpers
             return players;
         }
 
-        public async Task UpdatePlayersFromMatch(Match match, ISpreadsheetViewModel spreadsheetViewModel, AppSettings settings)
+        public async Task UpdatePlayersFromMatch(Match match, ISpreadsheetViewModel spreadsheetViewModel, IPlayersViewModel playersViewModel, AppSettings settings)
         {
             // Get the cached Leaderboard
-            var leaderboard = await spreadsheetViewModel.GetLeaderboard(settings.CurrentTournamentDetails.relatedSheetName);
+            // var leaderboard = await spreadsheetViewModel.GetLeaderboard(settings.CurrentTournamentDetails.relatedSheetName);
+            //copy playerslist
+            var players = playersViewModel.Players;
+
 
             // update the leaderboard
-            var player1 = leaderboard.Find(x => x.ChallongeId == match.Player1Id);
+            var player1 = players.Find(x => x.ChallongeId == match.Player1Id);
             var p1Score = match.Scores.Select(x => x.PlayerOneScore).FirstOrDefault();
-            var player2 = leaderboard.Find(x => x.ChallongeId == match.Player2Id);
+            var player2 = players.Find(x => x.ChallongeId == match.Player2Id);
             var p2Score = match.Scores.Select(x => x.PlayerTwoScore).FirstOrDefault();
 
             player1.Wins += p1Score;
@@ -102,50 +105,59 @@ namespace BeybladeTournamentManager.Helpers
             player2.Points += p2Score;
 
             // Update player in players list
-            var index = leaderboard.FindIndex(x => x.ChallongeId == player1.ChallongeId);
-            leaderboard[index] = player1;
+            var index = players.FindIndex(x => x.ChallongeId == player1.ChallongeId);
+            players[index] = player1;
 
-            index = leaderboard.FindIndex(x => x.ChallongeId == player2.ChallongeId);
-            leaderboard[index] = player2;
-
-            // Sort ranks based on points, if points are equal give same rank
-            SortRank(leaderboard);
+            index = players.FindIndex(x => x.ChallongeId == player2.ChallongeId);
+            players[index] = player2;
 
             // Update the leaderboard
-            await spreadsheetViewModel.UpdatePlayers(settings.CurrentTournamentDetails.relatedSheetName, leaderboard);
+            await spreadsheetViewModel.UpdatePlayers(settings.CurrentTournamentDetails.relatedSheetName, players);
+
+            // Sort the sheet
+            await spreadsheetViewModel.SortSheet(settings.CurrentTournamentDetails.relatedSheetName);
         }
 
-        public async Task UndoUpdateFromMatch(Match match, ISpreadsheetViewModel spreadsheetViewModel, AppSettings settings)
+        public async Task UndoUpdateFromMatch(Match match, ISpreadsheetViewModel spreadsheetViewModel, IPlayersViewModel playersViewModel, AppSettings settings)
         {
             // Get the cached Leaderboard
             var leaderboard = await spreadsheetViewModel.GetLeaderboard(settings.CurrentTournamentDetails.relatedSheetName);
+            var players = playersViewModel.Players;
+
 
             // update the leaderboard
-            var player1 = leaderboard.Find(x => x.ChallongeId == match.Player1Id);
+            var player1 = players.Find(x => x.ChallongeId == match.Player1Id);
             var p1Score = match.Scores.Select(x => x.PlayerOneScore).FirstOrDefault();
-            var player2 = leaderboard.Find(x => x.ChallongeId == match.Player2Id);
+            var player2 = players.Find(x => x.ChallongeId == match.Player2Id);
             var p2Score = match.Scores.Select(x => x.PlayerTwoScore).FirstOrDefault();
 
-            player1.Wins -= p1Score;
-            player1.Losses -= p2Score;
-            player1.Points -= p1Score;
+            if (player1.Wins > 0)
+            {
+                player1.Wins -= p1Score;
+                player1.Losses -= p2Score;
+                player1.Points -= p1Score;
 
-            player2.Wins -= p2Score;
-            player2.Losses -= p1Score;
-            player2.Points -= p2Score;
+            }
+
+            if (player2.Wins > 0)
+            {
+                player2.Wins -= p2Score;
+                player2.Losses -= p1Score;
+                player2.Points -= p2Score;
+            }
 
             // Update player in players list
-            var index = leaderboard.FindIndex(x => x.ChallongeId == player1.ChallongeId);
-            leaderboard[index] = player1;
+            var index = players.FindIndex(x => x.ChallongeId == player1.ChallongeId);
+            players[index] = player1;
 
-            index = leaderboard.FindIndex(x => x.ChallongeId == player2.ChallongeId);
-            leaderboard[index] = player2;
-
-            // Sort ranks based on points, if points are equal give same rank
-            SortRank(leaderboard);
+            index = players.FindIndex(x => x.ChallongeId == player2.ChallongeId);
+            players[index] = player2;
 
             // Update the leaderboard
-            await spreadsheetViewModel.UpdatePlayers(settings.CurrentTournamentDetails.relatedSheetName, leaderboard);
+            await spreadsheetViewModel.UpdatePlayers(settings.CurrentTournamentDetails.relatedSheetName, players);
+            
+            // Sort the sheet
+            await spreadsheetViewModel.SortSheet(settings.CurrentTournamentDetails.relatedSheetName);
         }
         private List<Player> SortRank(List<Player> players)
         {

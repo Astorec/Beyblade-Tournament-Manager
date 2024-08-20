@@ -4,66 +4,106 @@
 @using Challonge.Api
 @inject IAutentication _challongeAuth
 @inject ISettingsViewModel SettingsVM
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
-<MudPaper class="mt-2" Width="100%">
-    <MudContainer Fixed="true">
-        <MudGrid class="d-flex justify-center">
-            <MudItem xs="12" sm="6"> 
-                <MudCard>
-                    <MudCardHeader>
-                        Challonge Settings
-                    </MudCardHeader>
-                </MudCard>
-                <MudPaper>
-                    <div Class="d-inline-flex pa-2">
-                        <MudTextField Label="Challonge Username" @bind-Value="@CUsername" />
-                    </div>
-                    <div Class="d-inline-flex pa-2">
-                        <MudTextField Label="Challonge API Key" @bind-Value="@CApiKey" />
-                    </div>
-                </MudPaper>
-                <div Class="d-flex flex-wrap">
+<MudPaper class="d-flex flex-column justify-center mt-2" Width="50%">
 
-                    <MudButton OnClick="SaveSettings">Save</MudButton>
-                </div>
+    <MudPaper>
+        <MudText>Challonge Settings</MudText>
+        <div class="d-flex flex-column">
+            <div Class="d-inline-flex pt-2">
+                <MudTextField Label="Challonge Username" @bind-Value="@CUsername" />
+            </div>
+            <div Class="d-inline-flex pt-2">
+                <MudTextField Label="Challonge API Key" @bind-Value="@CApiKey" InputType="@PasswordInput"
+                    Adornment="Adornment.End" AdornmentIcon="@PasswordInputIcon" OnAdornmentClick="ButtonShowKeyClick"
+                    AdornmentAriaLabel="Show APIKey" />
+            </div>
+        </div>
+    </MudPaper>
 
 
-            </MudItem>
-        </MudGrid>
+    <MudPaper>
+        <MudText>Google Settings</MudText>
+        <div Class="d-inline-flex pt-2">
+            <MudTextField Label="Google Sheet Id" @bind-Value="@GoogleSheetId" />
+        </div>
+    </MudPaper>
 
-
-    </MudContainer>
+    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveSettings">Save Settings</MudButton>
 </MudPaper>
 
 
 @code {
     public string CApiKey { get; set; }
     public string CUsername { get; set; }
-    public string GoogleAppName{get; set;}
-    public string GoogleSheetId{get; set;}
-    public List<string> GoogleSheetNames{get; set;}
+    public string GoogleAppName { get; set; }
+    public string GoogleSheetId { get; set; }
     ChallongeClient _client;
     InputType PasswordInput = InputType.Password;
     AppSettings currentSettings;
-
+    bool isShow;
+    string PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
     async Task SaveSettings()
     {
         AppSettings settings = new AppSettings
             {
                 ChallongeAPIKey = CApiKey,
-                ChallongeUsername = CUsername
+                ChallongeUsername = CUsername,
+                SheetID = GoogleSheetId
             };
-        
+
         SettingsVM.SaveSettings(settings);
+        Snackbar.Add("Settings have been saved successfully!", Severity.Success);
+
+        // Switch to Checkin
+        Navigation.NavigateTo("/", true);
+        StateHasChanged();
     }
 
+    private void LoginWithGoogle()
+    {
+        Navigation.NavigateTo("api/auth/google-login", true);
+    }
     protected override async Task OnInitializedAsync()
     {
         if (_challongeAuth.GetClient() != null)
         {
             _client = _challongeAuth.GetClient();
+            currentSettings = SettingsVM.GetSettings;
+
+            if (currentSettings.ChallongeAPIKey != "")
+            {
+                CApiKey = currentSettings.ChallongeAPIKey;
+            }
+
+            if (currentSettings.ChallongeUsername != "")
+            {
+                CUsername = currentSettings.ChallongeUsername;
+            }
+
+            if (currentSettings.SheetID != "")
+            {
+                GoogleSheetId = currentSettings.SheetID;
+            }
+        }
+    }
+
+    void ButtonShowKeyClick()
+    {
+        if (isShow)
+        {
+            isShow = false;
+            PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+            PasswordInput = InputType.Password;
+        }
+        else
+        {
+            isShow = true;
+            PasswordInputIcon = Icons.Material.Filled.Visibility;
+            PasswordInput = InputType.Text;
         }
     }
 
 }
-    using NuGet.Configuration;

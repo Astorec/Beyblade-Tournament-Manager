@@ -12,36 +12,35 @@ namespace BeybladeTournamentManager.ApiCalls.Google
     {
         private static AppSettings _settings;
         private readonly IAutentication _auth;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private static readonly string[] Scopes = { SheetsService.Scope.Spreadsheets };
 
         private static SheetsService _service;
-        public GoogleService(IAutentication auth, ISettingsViewModel settingsViewModel)        
+        public GoogleService(IAutentication auth, ISettingsViewModel settingsViewModel,  IHttpContextAccessor httpContextAccessor)
         {
             _auth = auth;
             _settings = settingsViewModel.GetSettings;
-            GoogleCredential credential;
-            
-            // Check AppSettings for GoogleCredLocation
-            // If it exists, use it to create a GoogleCredential
-            if (_settings.GoogleCredLocation != "")
-            {
-                using (var stream = new FileStream("tmp/beyblde-tournament-manager-c86c4d40deec.json", FileMode.Open, FileAccess.Read))
-                {
-                    credential = GoogleCredential.FromStream(stream)
-                        .CreateScoped(Scopes);
-                }
+            _httpContextAccessor = httpContextAccessor;
 
-                _service = new SheetsService(new BaseClientService.Initializer()
-                {
-                    HttpClientInitializer = credential,
-                    ApplicationName = _settings.GoogleAppName
-                });
+            var accessToken = _httpContextAccessor.HttpContext.Session.GetString("GoogleAccessToken");
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                throw new InvalidOperationException("Google access token is not available.");
             }
+
+            var credential = GoogleCredential.FromAccessToken(accessToken)
+                .CreateScoped(Scopes);
+
+            _service = new SheetsService(new BaseClientService.Initializer()
+            {
+                HttpClientInitializer = credential,
+                ApplicationName = _settings.GoogleAppName
+            });
         }
 
         public SheetsService GetService()
         {
-            if(_service != null)
+            if (_service != null)
             {
                 return _service;
             }
@@ -50,6 +49,6 @@ namespace BeybladeTournamentManager.ApiCalls.Google
                 throw new Exception("GoogleService not initialized");
             }
         }
-        
+
     }
 }

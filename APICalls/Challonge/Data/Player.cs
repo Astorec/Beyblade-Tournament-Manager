@@ -14,6 +14,8 @@ namespace BeybladeTournamentManager.ApiCalls.Challonge.Data
         public int first {get; set;}
         public int second {get; set;}
         public int third {get; set;}
+        public double WinPercentage {get; set;}
+        public int Rating {get; set;}
         public string region{get; set;}
     }
 }

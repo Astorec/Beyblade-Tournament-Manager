@@ -4,6 +4,7 @@ namespace BeybladeTournamentManager.Config
 {
     public class AppSettings
     {
+        public string? EncryptionKey { get; set; }
         public string? ChallongeAPIKey { get; set; }
         public string? ChallongeUsername { get; set; }
         public string? GoogleAppName {get; set;}
@@ -11,7 +12,5 @@ namespace BeybladeTournamentManager.Config
         public Dictionary<string, string>? PreviousTournements{get; set;}
         public string CurrentTournament{get; set;}
         public TournamentDetails? CurrentTournamentDetails {get; set;}
-        public string? CurrentTournamentSheetName {get; set;}
-        public string? GoogleCredLocation {get; set;}
     }
 }

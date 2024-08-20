@@ -17,8 +17,8 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
         private ISettingsViewModel _settingsViewModel;
         private IPlayersViewModel _playersViewModel;
         private ITournamentManager _tournamentManger;
-        private readonly AppSettings _appSettings;
-        public TournamentViewModel(ISettingsViewModel settingsViewModel,ISpreadsheetViewModel spreadsheetViewModel, IPlayersViewModel playerVM, ITournamentManager manager, IAutentication auth)
+        private AppSettings _appSettings;
+        public TournamentViewModel(ISettingsViewModel settingsViewModel, ISpreadsheetViewModel spreadsheetViewModel, IPlayersViewModel playerVM, ITournamentManager manager, IAutentication auth)
         {
             _autentication = auth;
             _spreadsheetViewModel = spreadsheetViewModel;
@@ -37,39 +37,55 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
         }
         public async Task HandleUrlAdded(string url)
         {
+            if (string.IsNullOrEmpty(url))
+            {
+                // Handle the case where the URL is null or empty
+                Console.WriteLine("URL is null or empty.");
+                return;
+            }
             var currentSettings = _settingsViewModel.GetSettings;
 
             var code = GetTournamentCode(url);
 
+            if (_appSettings.PreviousTournements == null)
+            {
+                _appSettings.PreviousTournements = new System.Collections.Generic.Dictionary<string, string>();
+            }
             if (!_appSettings.PreviousTournements.ContainsKey(code))
             {
                 _appSettings.PreviousTournements.Add(code, url);
                 currentSettings.PreviousTournements = _appSettings.PreviousTournements;
             }
 
-            currentSettings.CurrentTournament = code;
-            _settingsViewModel.SaveSettings(currentSettings);
 
             // Get the tournament info so we can save it to the settings file. This is so we can at least
             // access the spreadsheet name as it will error otherwise when trying to get the sheet information
             // to get the correct sheet info.
-            var settings = _settingsViewModel.GetSettings;
             var tourneyInfo = await _client.GetTournamentByUrlAsync(code);
-            string sheetName = $"{tourneyInfo.Name} - {tourneyInfo.StartAt.Value.Date.ToString("dd/MM/yyyy")}";
+            string startDate = "";
+
+            if (tourneyInfo.StartAt.HasValue)
+            {
+                startDate = tourneyInfo.StartAt.Value.Date.ToString("dd/MM/yyyy");
+            }
+            else
+            {
+                startDate = tourneyInfo.StartedAt.Value.Date.ToString("dd/MM/yyyy");
+            }
+            string sheetName = $"{tourneyInfo.Name} - {startDate}";
 
             TournamentDetails = _tournamentManger.SetTournamentDetails(code, tourneyInfo.Name, sheetName);
-            settings.CurrentTournamentDetails = TournamentDetails;
+            currentSettings.CurrentTournamentDetails = TournamentDetails;
 
-            _settingsViewModel.SaveSettings(settings);
+            _settingsViewModel.SaveSettings(currentSettings);
 
 
             // Get the participants
-            await GetParticipentsViaURL(code);
+            await _playersViewModel.GetParticipentsViaURL(code);
 
             // Get the leaderboard information. Through this if the tournament was set up through Challonge, it will create
             // a new sheet based on that infroamtion.
             var leaderboard = await _spreadsheetViewModel.GetLeaderboard(sheetName);
-            LeaderboardHelper leaderboardHelper = new LeaderboardHelper();
 
             // If the leaderboard is empty, we can add players to the sheet, this is more so if the tournament was set up
             // on Challonge previously and already has players and data in it.
@@ -77,7 +93,7 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
             {
                 var tempList = (List<Player>)_playersViewModel.Players;
 
-                foreach(var player in tempList)
+                foreach (var player in tempList)
                 {
                     await _spreadsheetViewModel.AddNewPlayer(sheetName, player);
                 }
@@ -94,7 +110,7 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
 
             if (code != "" && _client != null)
             {
-
+                _playersViewModel.isLoading = true;
                 try
                 {
                     Console.WriteLine("In Try of GetParticipentsViaURL");
@@ -138,6 +154,8 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                     TournamentDetails.tournamentUrl = code;
                     currentSettings.CurrentTournamentDetails = TournamentDetails;
                     _settingsViewModel.SaveSettings(currentSettings);
+                    Console.Write(_playersViewModel.Players.Count);
+                    _playersViewModel.isLoading = false;
                 }
                 catch (Exception e)
                 {
@@ -150,18 +168,24 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
         private async Task AddPlayerFromParticipant(List<Participant> participants)
         {
             List<Player> tempList = new List<Player>();
+
+            // Update settings to the latest
+            _appSettings = _settingsViewModel.GetSettings;
+            int rank = 1;
             foreach (var participant in participants)
             {
                 Player p = new Player
                 {
                     Name = participant.Name,
+                    LeaderboardRank = rank.ToString(),
                     region = "",
                     ChallongeId = participant.Id,
                     CheckInState = participant.CheckedIn,
                     CheckInTime = participant.CheckedInAt
                 };
 
-               await _spreadsheetViewModel.AddNewPlayer(_appSettings.CurrentTournamentDetails.relatedSheetName, p);
+                await _spreadsheetViewModel.AddNewPlayer(_appSettings.CurrentTournamentDetails.relatedSheetName, p);
+                rank++;
             }
         }
 
@@ -173,6 +197,6 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
         }
 
 
-       public TournamentDetails TournamentDetails { get; set; }
+        public TournamentDetails TournamentDetails { get; set; }
     }
 }
