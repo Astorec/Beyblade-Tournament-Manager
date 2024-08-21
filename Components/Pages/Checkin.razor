@@ -16,6 +16,7 @@
 @inject ISpreadsheetViewModel _spreadsheetVM
 @inject ITournamentManager _tournamentInfo
 @inject AuthenticationStateProvider _authStateProvider
+@inject ISnackbar Snackbar
 
 @if (PlayersVM.isLoading)
 {
@@ -36,6 +37,9 @@ else
         {
 
             <AddNewPlayer PlayerToAdd="PlayersVM.AddPlayer" />
+
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="StartTournament"> Start Tournament </MudButton>
+
         }
         </MudPaper>
     <MudPaper class="d-flex mt-2 " Width="100%">
@@ -74,10 +78,13 @@ else
 }
 
 @code {
+    private ChallongeClient? _client;
     private string selectedRegion;
     bool isLoading = true;
+    TournamentState tournamentState;
     protected override void OnInitialized()
     {
+        _client = _challongeAuth.GetClient();
         PlayersVM.OnStateChanged += StateHasChanged;
     }
 
@@ -94,6 +101,8 @@ else
                 if (SettingsVM.GetSettings.CurrentTournamentDetails != null)
                     PlayersVM.GetParticipentsViaURL(SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl);
 
+
+                Snackbar.Add($"Checking for Sheet Updates", Severity.Info);
                 _spreadsheetVM.GetSheets().Wait();
 
                 PlayersVM.isLoading = false;
@@ -105,6 +114,19 @@ else
     {
         selectedRegion = newRegion;
         PlayersVM.HandleCheckInState(true); // Example usage
+    }
+
+    private async Task StartTournament()
+    {
+
+        try
+        {
+            await TournamentVM.StartTournament();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
     }
 
     public void Dispose()

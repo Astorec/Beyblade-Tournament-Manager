@@ -16,7 +16,7 @@ namespace BeybladeTournamentManager.ApiCalls.Google
         private static readonly string[] Scopes = { SheetsService.Scope.Spreadsheets };
 
         private static SheetsService _service;
-        public GoogleService(IAutentication auth, ISettingsViewModel settingsViewModel,  IHttpContextAccessor httpContextAccessor)
+        public GoogleService(IAutentication auth, ISettingsViewModel settingsViewModel, IHttpContextAccessor httpContextAccessor)
         {
             _auth = auth;
             _settings = settingsViewModel.GetSettings;
@@ -25,17 +25,21 @@ namespace BeybladeTournamentManager.ApiCalls.Google
             var accessToken = _httpContextAccessor.HttpContext.Session.GetString("GoogleAccessToken");
             if (string.IsNullOrEmpty(accessToken))
             {
-                throw new InvalidOperationException("Google access token is not available.");
+                Console.WriteLine("Google token is not ready yet");
+            }
+            else
+            {
+                var credential = GoogleCredential.FromAccessToken(accessToken)
+                            .CreateScoped(Scopes);
+
+                _service = new SheetsService(new BaseClientService.Initializer()
+                {
+                    HttpClientInitializer = credential,
+                    ApplicationName = _settings.GoogleAppName
+                });
             }
 
-            var credential = GoogleCredential.FromAccessToken(accessToken)
-                .CreateScoped(Scopes);
 
-            _service = new SheetsService(new BaseClientService.Initializer()
-            {
-                HttpClientInitializer = credential,
-                ApplicationName = _settings.GoogleAppName
-            });
         }
 
         public SheetsService GetService()

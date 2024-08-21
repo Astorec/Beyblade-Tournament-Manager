@@ -7,6 +7,7 @@
 @inject IAutentication _challongeAuth
 @inject ISpreadsheetViewModel _spreadsheetVM
 @inject ISettingsViewModel SettingsVM
+@inject ISnackbar snackbar
 
 <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="TogglePopup">Create Tournament</MudButton>
 
@@ -37,11 +38,16 @@
             <div class="d-flex flex-row gap-2">
                 <MudTextField Label="Description" @bind-Value="@tDescription" />
             </div>
-            <div class="d-flex flex-row gap-2">
-                <MudDatePicker Label="Start Date" @bind-Date="tDate" />
+            <div>
+                <MudCheckBox Label="Has Start Date" @bind-Value="hasStartDate" />
+                <div class="d-flex flex-row gap-2">
+                    <MudDatePicker Label="Start Date" @bind-Date="tDate" Disabled="@toggleStartDate" />
+                </div>
             </div>
+
             <div class="d-flex flex-row gap-2">
-                <MudTextField Label="Check In Duration (In Days)" @bind-Value="@CheckInDuration" />
+                <MudTextField Label="Check In Duration (In Days)" @bind-Value="@CheckInDuration"
+                    Disabled="@toggleStartDate" />
             </div>
             <div class="d-flex flex-row justify-space-between mt-4">
                 <div>
@@ -61,12 +67,12 @@
     bool viewPopup = false;
     bool addingTournament = false;
     ChallongeClient? _client;
-
+    bool toggleStartDate = true;
     private string tName = "";
     private TournamentType tType;
     private string tDescription = "";
     private DateTime? tDate = DateTime.Today.AddDays(2);
-    private int CheckInDuration = 5;
+    public int CheckInDuration = 5;
     [Parameter]
     public EventCallback<bool> AddedTournament { get; set; }
 
@@ -86,36 +92,35 @@
 
             string sheetName = $"{tName} - {tDate.Value.Date.ToString("dd/MM/yyyy")}";
             string sanitizedTName = System.Text.RegularExpressions.Regex.Replace(tName, @"[^a-zA-Z0-9_]", "");
+
+            // if there is no start date, set null
+            if (!hasStartDate)
+            {
+                tDate = DateTime.Today;
+            }
+
             TournamentInfo tournament = new TournamentInfo
                 {
                     Name = tName,
-                    Url = sanitizedTName,
                     Description = tDescription,
-                    StartAt = tDate,
-                    CheckInDuration = CheckInDuration
+                    StartAt = tDate
                 };
 
-            await _client.CreateTournamentAsync(tournament);
+            if (hasStartDate)
+            {
+                tournament.CheckInDuration = CheckInDuration;
+            }
+            var NewTournament = await _client.CreateTournamentAsync(tournament);
             await _spreadsheetVM.CreateSheet(sheetName);
-
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex.Message);
-        }
-        finally
-        {
-            viewPopup = false;
-            addingTournament = false;
             Console.WriteLine("Adding tournament finished");
+
 
             var settings = SettingsVM.GetSettings;
             var details = new TournamentDetails();
-            details.tournamentUrl = System.Text.RegularExpressions.Regex.Replace(tName, @"[^a-zA-Z0-9_]",
-            "");
+            details.tournamentUrl = NewTournament.Url;
             Uri uri = new Uri("https://challonge.com/" + details.tournamentUrl);
 
-            if(settings.PreviousTournements == null)
+            if (settings.PreviousTournements == null)
             {
                 settings.PreviousTournements = new Dictionary<string, string>();
             }
@@ -125,10 +130,21 @@
             settings.CurrentTournamentDetails = details;
             SettingsVM.SaveSettings(settings);
 
-            StateHasChanged();
+
 
             // Update the cache
             await _spreadsheetVM.GetSheets();
+
+        }
+        catch (Exception ex)
+        {
+            snackbar.Add($"Error adding tournament: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            viewPopup = false;
+            addingTournament = false;
+            StateHasChanged();
         }
 
     }
@@ -151,5 +167,12 @@
     {
         viewPopup = false;
         StateHasChanged();
+    }
+
+    // Set toggleStartDate to true if hasStartDate is false. Default value of hasStartDate is true.
+    bool hasStartDate
+    {
+        get => !toggleStartDate;
+        set => toggleStartDate = !value;
     }
 }

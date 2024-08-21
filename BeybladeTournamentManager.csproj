@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
     <PackageReference Include="Challonge-DotNet" Version="3.0.2" />
+    <PackageReference Include="Google.Apis.Area120Tables.v1alpha1" Version="1.68.0.2637" />
     <PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
     <PackageReference Include="Google.Apis.Oauth2.v2" Version="1.68.0.1869" />
     <PackageReference Include="Google.Apis.Sheets.v4" Version="1.68.0.3476" />

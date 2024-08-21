@@ -14,7 +14,7 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
         private readonly IAutentication _autentication;
         private ISettingsViewModel _settingsViewModel;
         private ISpreadsheetViewModel _spreadsheetViewModel;
-        private readonly AppSettings _appSettings;
+        private AppSettings _appSettings;
         Dictionary<string, List<Player>> playerCache = new Dictionary<string, List<Player>>();
         public event Action OnStateChanged;
         private bool _isLoading = true;
@@ -89,7 +89,6 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
 
             if (code != "" && _client != null)
             {
-
                 try
                 {
                     Console.WriteLine(code);
@@ -140,6 +139,9 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
 
         public async Task AddPlayerFromParticipant(List<Participant> participants)
         {
+            var tournament = await _client.GetTournamentByUrlAsync(_appSettings.CurrentTournamentDetails.tournamentUrl);
+            var matches = await _client.GetMatchesAsync(tournament);
+            _appSettings = _settingsViewModel.GetSettings;
             isLoading = true;
             OnStateChanged?.Invoke();
             List<Player> tempList = new List<Player>();
@@ -153,6 +155,29 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                     CheckInState = participant.CheckedIn,
                     CheckInTime = participant.CheckedInAt
                 };
+
+                if (tournament.State == TournamentState.Underway || tournament.State == TournamentState.Complete)
+                {
+                    // From matches find the players Wins and Losses
+                    var playerMatches = matches.Where(x => x.Player1Id == participant.Id || x.Player2Id == participant.Id).ToList();
+
+                    foreach (var match in playerMatches)
+                    {
+                        if (match.State != MatchState.Complete)
+                        {
+                            continue;
+                        }
+                        if (match.WinnerId == participant.Id && match.State == MatchState.Open)
+                        {
+                            p.Wins++;
+                        }
+                        else if(match.State == MatchState.Open)
+                        {
+                            p.Losses++;
+                        }
+                    }
+                }
+
 
                 _spreadsheetViewModel.AddNewPlayer(_appSettings.CurrentTournamentDetails.relatedSheetName, p);
                 _players.Add(p);

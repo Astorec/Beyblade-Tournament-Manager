@@ -13,23 +13,42 @@
 @inject ISpreadsheetViewModel _spreadsheetVM
 @inject ISettingsViewModel SettingsVM
 @inject IPlayersViewModel _playersVM
+@inject ISnackbar Snackbar
 
 <MudPaper Elevation="0">
     <MudContainer>
         @if (!matchesLoaded)
         {
-            <MudCard>
-                <MudText class="d-flex justify-center">Loading Matches</MudText>
-            </MudCard>
+            <div class="d-flex justify-center pt-5">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+            </div>
         }
         else if(matchesLoaded && matches.Count == 0)
         {
             <NotStartedBracket/>
         }
         else
-        {
+        {           
+             @if(tournamentComplete)
+            {
+                <MudText Typo="Typo.h4" Class="d-flex justify-center">Bracket - @tournament.Name - Completed</MudText>
+            }
+             else
+            {
+                <MudText Typo="Typo.h4" Class="d-flex justify-center">Bracket - @tournament.Name</MudText>
+            }
+         
             <MudGrid>
+                
                 <MudItem xs="12">
+                    @if(tournament.State.ToString() == "AwaitingReview"){
+            
+                        <MudPaper Class="d-flex flex-row justify-center" Elevation="0">
+
+                        <MudText class="align-content-center">Complete Tournament</MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.CheckBox" @onclick="FinishTournament"/>
+                        </MudPaper>
+                    }
                     <div class="d-flex justify-content-between align-content-center"> <!-- Flex container for rounds -->
                         @foreach (var roundGroup in matches.GroupBy(m => m.Round).OrderBy(g => g.Key))
                         {
@@ -101,10 +120,10 @@
                                                             </div>
                                                             @if(match.State != MatchState.Complete)
                                                             {
-                                                                <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success" @onclick="() => UpdateScores(match)"/>
+                                                                <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success" @onclick="() => UpdateScores(match)" Disabled="@tournamentComplete"/>
                                                             }
                                                             else{
-                                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" @onclick="() => ReopenMatch(match)"/>
+                                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" @onclick="() => ReopenMatch(match)" Disabled="@tournamentComplete"/>
                                                             }
                                                         </div>
                                                     </MudCardContent>
@@ -155,10 +174,10 @@
                                                             </div>
                                                             @if(match.State != MatchState.Complete)
                                                             {
-                                                                <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success" @onclick="() => UpdateScores(match)"/>
+                                                                <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success" @onclick="() => UpdateScores(match)" Disabled="@tournamentComplete"/>
                                                             }
                                                             else{
-                                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" @onclick="() => ReopenMatch(match)"/>
+                                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" @onclick="() => ReopenMatch(match)" Disabled="@tournamentComplete"/>
                                                             }
                                                         </div>
                                                     </MudCardContent>
@@ -201,6 +220,7 @@
     bool canAddMatch = false;
     bool finals = false;
     bool grandFinals = false;
+    bool tournamentComplete = false;
     string tournamentUrl;
     Dictionary<string, string> tournamentUrls = new Dictionary<string, string>();
     private Timer _timer;
@@ -209,7 +229,8 @@
     {
         _client = _challongeAuth.GetClient();
         tournamentUrl = SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl;
-
+        tournament = await _tournamentInfo.GetTournament(tournamentUrl);
+        Console.WriteLine(tournament.State.ToString());
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -333,7 +354,7 @@
     public async Task UpdateScores(Challonge.Objects.Match match)
     {
         LeaderboardHelper leaderboardHelper = new LeaderboardHelper();
-        
+        Snackbar.Add($"Updating Scores", Severity.Info);
         // Update Scores for the match in the Local List
         bool isTie = false;
         var player1Score = player1Scores[match.Id];
@@ -364,27 +385,27 @@
         match = await _client.GetMatchAsync(tournamentUrl, match.Id);
         await leaderboardHelper.UpdatePlayersFromMatch(match, _spreadsheetVM,_playersVM, SettingsVM.GetSettings);
         await RefreshData();        
-
+           Snackbar.Add($"Scores Updated!", Severity.Success);
         await InvokeAsync(StateHasChanged);      
     }
 
     public async Task ReopenMatch(Challonge.Objects.Match match)
     {
-         var index = matches.FindIndex(m => m.Id == match.Id);
+        Snackbar.Add($"Undoing Match", Severity.Info);
+        var index = matches.FindIndex(m => m.Id == match.Id);
         var updatedMatch = await _client.GetMatchAsync(tournamentUrl, match.Id);
         matches[index] = updatedMatch;
 
-         await _client.ReopenMatchAsync(match);
+        await _client.ReopenMatchAsync(match);
         LeaderboardHelper leaderboardHelper = new LeaderboardHelper();
 
         tournamentUrl = SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl;
         await leaderboardHelper.UndoUpdateFromMatch(match, _spreadsheetVM, _playersVM, SettingsVM.GetSettings);
        
        
-        await RefreshData();        
+        await RefreshData();              
 
-      
-
+        Snackbar.Add($"Undone Match!", Severity.Success);
         await InvokeAsync(StateHasChanged);      
     }
 
@@ -434,6 +455,19 @@
         UpdateMatchScore(matchId, player1Score, player2Score);
     }
 
+    private async Task FinishTournament()
+    {
+
+           Snackbar.Add($"Closing Tournament", Severity.Info);
+        LeaderboardHelper leaderboardHelper = new LeaderboardHelper();
+        tournamentUrl = SettingsVM.GetSettings.CurrentTournamentDetails.tournamentUrl;
+        await _client.FinalizeTournamentAsync(tournamentUrl);
+        await leaderboardHelper.CompleteMatch(_spreadsheetVM, _playersVM, SettingsVM.GetSettings);
+        tournamentComplete = true;
+
+           Snackbar.Add($"Tournament Complete!", Severity.Success);
+        await InvokeAsync(StateHasChanged);
+    }
 
     private int ConvertToInt(string value)
     {

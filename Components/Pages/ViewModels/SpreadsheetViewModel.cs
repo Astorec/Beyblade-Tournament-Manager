@@ -105,21 +105,25 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
 
         public Sheet GetSheetFromCache(string sheetTitle)
         {
-            if (!_sheetsCache.TryGetValue(sheetTitle, out var sheetData))
+            if (_sheetsCache.ContainsKey(sheetTitle))
             {
-                var request = GetSpreadsheets().Result.Execute();
-                foreach (var s in request.Sheets)
+                return _sheetsCache[sheetTitle];
+            }
+
+
+            // Check to see if we can pull the sheet from google
+            var getSheet = GetSpreadsheets().Result;
+            Spreadsheet spreadsheet = getSheet.Execute();
+            foreach (var sheet in spreadsheet.Sheets)
+            {
+                if (sheet.Properties.Title == sheetTitle)
                 {
-                    if (s.Properties.Title == sheetTitle)
-                    {
-                        _sheetsCache[sheetTitle] = s;
-                        sheetData = s;
-                        break;
-                    }
+                    _sheetsCache.Add(sheetTitle, sheet);
+                    return sheet;
                 }
             }
 
-            return sheetData;
+            return null;
         }
 
         public async Task CreateSheet(string sheetTitle)
@@ -164,16 +168,16 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                 var appendRequest = UpdateSheet(range, valueRange).Result;
                 appendRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
 
-                _cache.Add(sheetTitle, new List<IList<object>>());
                 // Execute the request
-                appendRequest.Execute();
+                var result = appendRequest.Execute();
 
-                // Don't like adding these in, but found that when the sheet is created and we move on to populating it
-                // with the players, the sheet would start overriding data and I think it was using the first row even
-                // though it has the headers. I think because the data has had a chance to update yet on the google side,
-                // we end up going in to the first row instead of hte next free one. So I've added this to add some kind
-                // of delay, it works for now but it is dirty and not ideal.
-                Thread.Sleep(3000);
+                List<string> expectedColumnNames = new List<string>{"Rank", "Blader", "Wins", "Losses", "1st", "2nd", "3rd",
+                        "Points", "Win%", "Rating", "Region", "Column 1", "Column 2", "Column 3", "Column 4" , "Column 5",
+                        "Column 6", "Column 7", "Column 8", "Column 9" };
+                // get header index
+                int headerRowIndex = GetRowHeaderIndex(sheetTitle, expectedColumnNames);
+                var dataResponse = GetSheetValues($"{sheetTitle}!A{headerRowIndex + 2}:T").Result.Execute();
+                _cache[sheetTitle] = dataResponse.Values;
                 Console.WriteLine("Data updated in range: " + range);
             }
             catch (Google.GoogleApiException e)
@@ -224,7 +228,12 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
         }
         public async Task AddNewPlayer(string sheetTitle, Player player)
         {
-
+            // Don't like adding these in, but found that when the sheet is created and we move on to populating it
+            // with the players, the sheet would start overriding data and I think it was using the first row even
+            // though it has the headers. I think because the data has had a chance to update yet on the google side,
+            // we end up going in to the first row instead of hte next free one. So I've added this to add some kind
+            // of delay, it works for now but it is dirty and not ideal.
+            Thread.Sleep(1000);
             try
             {
                 // Check to see if a sheet exists in the cache, if not create it
@@ -233,25 +242,13 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                     await CreateSheet(sheetTitle);
                 }
 
-                // Check that player is not already in the sheet
-                if (_cache.TryGetValue(sheetTitle, out var data))
-                {
-                    foreach (var row in data)
-                    {
-                        if (row[1].ToString() == player.Name)
-                        {
-                            Console.WriteLine($"Player {player.Name} already exists in the sheet {sheetTitle}");
-                            return;
-                        }
-                    }
-                }
-
                 // Get sheet from cache
                 Sheet sheet = GetSheetFromCache(sheetTitle);
 
                 if (sheet == null)
                 {
-                    throw new Exception($"Sheet {sheetTitle} not found");
+                    Console.WriteLine($"Sheet {sheetTitle} not found");
+                    return;
                 }
 
                 var values = GetSheetValues(sheetTitle).Result.Execute().Values;
@@ -268,16 +265,10 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                         }
                     }
                 }
-
-                // Set the rank for the new player but if it is the first player after the header, set it to 
-                // the formula to calculate the rank
-
-
-
                 // Get next empty row number
                 int newRowNumber = values.Count + 1;
-                string rank = "1";
-                var range = $"{sheetTitle}!A{newRowNumber + 1}:T";
+                string rank = $"=RANK(J{newRowNumber},J{newRowNumber}:J$400,0)";
+                var range = $"{sheetTitle}!A{newRowNumber}:T";
                 string sumFormula = $"=SUM(C{newRowNumber},(E{newRowNumber}*3),(F{newRowNumber}*2),(G{newRowNumber}*1))";
                 string winRatioFormula = $"=IFERROR(ROUND((C{newRowNumber}/(C{newRowNumber}+D{newRowNumber})), 2), \"\")";
                 string customFormula = $"=ROUND((H{newRowNumber} * 100) * I{newRowNumber})";
@@ -306,12 +297,21 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
 
                 var appendRequest = UpdateSheet(updateRange, valueRange).Result;
                 appendRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
-                var response = await appendRequest.ExecuteAsync();
+                await appendRequest.ExecuteAsync();
 
-                // Cache the updated values
-                _cache[sheetTitle] = values;
 
-                Console.WriteLine($"Response: {response} - Player {player.Name} added to sheet {sheetTitle}");
+
+                // Find header index
+                var expectedColumnNames = new List<string> { "Rank", "Blader", "Wins", "Losses", "1st", "2nd", "3rd",
+                        "Points", "Win%", "Rating", "Region", "Column 1", "Column 2", "Column 3", "Column 4" , "Column 5",
+                        "Column 6", "Column 7", "Column 8", "Column 9" };
+                int headerRowIndex = GetRowHeaderIndex(sheetTitle, expectedColumnNames);
+
+                // Update cache from google not including header
+                var dataResponse = GetSheetValues($"{sheetTitle}!A{headerRowIndex + 2}:T").Result.Execute();
+                _cache[sheetTitle] = dataResponse.Values;
+
+                //Console.WriteLine($"Response: {response} - Player {player.Name} added to sheet {sheetTitle}");
             }
             catch (Exception ex)
             {
@@ -344,11 +344,18 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
             {
                 // Find the player in the values IList<IList<object>> and update the values
                 var index = valuesList.FindIndex(x => x[1].ToString() == p.Name);
-
-                valuesList[index] = new List<object> { p.LeaderboardRank, p.Name, p.Points, p.Wins, p.Losses, p.first, p.second, p.third, p.region };
-
+                valuesList[index][0] = $"=RANK(J{index + 2},J${index + 2}:J$400,0)";
+                valuesList[index][2] = p.Wins;
+                valuesList[index][3] = p.Losses;
+                valuesList[index][4] = p.first;
+                valuesList[index][5] = p.second;
+                valuesList[index][6] = p.third;
+                valuesList[index][7] = $"=SUM(C{index + 2},(E{index + 2}*3),(F{index + 2}*2),(G{index + 2}*1))";
+                valuesList[index][8] = $"=IFERROR(ROUND((C{index + 2}/(C{index + 2}+D{index + 2})), 2), \"\")";
+                valuesList[index][9] = $"=ROUND((H{index + 2} * 100) * I{index + 2})";
             }
 
+            // Only update the row in specific columns
             var valueRange = new ValueRange
             {
                 Values = valuesList
@@ -357,6 +364,9 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
             var appendRequest = UpdateSheet(range, valueRange).Result;
             appendRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
             appendRequest.Execute();
+
+            // update cache not
+            _cache[sheetTtile] = valuesList;
         }
 
         // sort spreadhsheet by rating
@@ -380,9 +390,6 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
 
             var values = GetCachedData(sheetTitle);
             var valuesList = values as List<IList<object>>;
-
-            // Sort the values by rating
-            valuesList = valuesList.OrderByDescending(x => x[9]).ToList();
 
             var valueRange = new ValueRange
             {
@@ -529,16 +536,9 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
             }
             else
             {
-                // Double check if the sheet exists in _cache
-                GetSheets();
-                if (_cache.TryGetValue(sheetTitle, out var newData))
-                {
-                    return newData;
-                }
 
                 Console.WriteLine($"No sheets have been found. Generating new Sheet");
                 CreateSheet(sheetTitle);
-                _cache.Add(sheetTitle, new List<IList<object>>());
                 _cache.TryGetValue(sheetTitle, out var retunData);
 
                 return retunData;

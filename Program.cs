@@ -77,10 +77,10 @@ builder.Services.AddSingleton<Challonge.Api.ChallongeCredentials>(sp =>
     return new Challonge.Api.ChallongeCredentials(username, apiKey);
 });
 
-
-builder.Services.AddScoped<ISettingsViewModel, SettingsViewModel>();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ISettingsViewModel, SettingsViewModel>();
+
 builder.Services.AddScoped<IPlayersViewModel, PlayersViewModel>();
 builder.Services.AddScoped<ITournamentViewModel, TournamentViewModel>();
 builder.Services.AddScoped<ISpreadsheetViewModel, SpreadsheetViewModel>();

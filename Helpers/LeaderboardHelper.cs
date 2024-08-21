@@ -56,9 +56,6 @@ namespace BeybladeTournamentManager.Helpers
                 }
             }
 
-            // Sort ranks based on points, if points are equal give same rank
-            players = players.OrderByDescending(x => x.Points).ThenByDescending(x => x.Wins).ThenBy(x => x.Losses).ToList();
-
             int lastRank = 0;
             // Set the rank for each player
             for (int i = 0; i < players.Count; i++)
@@ -96,13 +93,17 @@ namespace BeybladeTournamentManager.Helpers
             var player2 = players.Find(x => x.ChallongeId == match.Player2Id);
             var p2Score = match.Scores.Select(x => x.PlayerTwoScore).FirstOrDefault();
 
-            player1.Wins += p1Score;
-            player1.Losses += p2Score;
-            player1.Points += p1Score;
-
-            player2.Wins += p2Score;
-            player2.Losses += p1Score;
-            player2.Points += p2Score;
+            // Find match winner
+            if (match.WinnerId == player1.ChallongeId)
+            {
+                player1.Wins += 1;
+                player2.Losses += 1;
+            }
+            else
+            {
+                player2.Wins += 1;
+                player1.Losses += 1;
+            }
 
             // Update player in players list
             var index = players.FindIndex(x => x.ChallongeId == player1.ChallongeId);
@@ -133,17 +134,12 @@ namespace BeybladeTournamentManager.Helpers
 
             if (player1.Wins > 0)
             {
-                player1.Wins -= p1Score;
-                player1.Losses -= p2Score;
-                player1.Points -= p1Score;
-
+                player1.Wins -= 1;
             }
 
             if (player2.Wins > 0)
             {
-                player2.Wins -= p2Score;
-                player2.Losses -= p1Score;
-                player2.Points -= p2Score;
+                player2.Wins -=1;
             }
 
             // Update player in players list
@@ -155,37 +151,40 @@ namespace BeybladeTournamentManager.Helpers
 
             // Update the leaderboard
             await spreadsheetViewModel.UpdatePlayers(settings.CurrentTournamentDetails.relatedSheetName, players);
-            
+
             // Sort the sheet
             await spreadsheetViewModel.SortSheet(settings.CurrentTournamentDetails.relatedSheetName);
         }
-        private List<Player> SortRank(List<Player> players)
+
+        public async Task CompleteMatch(ISpreadsheetViewModel spreadsheetViewModel, IPlayersViewModel playersViewModel, AppSettings settings)
         {
-            // Sort ranks based on points, if points are equal give same rank
-            players = players.OrderByDescending(x => x.Points).ThenByDescending(x => x.Wins).ThenBy(x => x.Losses).ToList();
+            // Get the cached Leaderboard
+            var leaderboard = await spreadsheetViewModel.GetLeaderboard(settings.CurrentTournamentDetails.relatedSheetName);
+            var players = playersViewModel.Players;
 
-            int lastRank = 0;
-            // Set the rank for each player
-            for (int i = 0; i < players.Count; i++)
-            {
+            // figure out who came First, Second and Third from all players
+            var first = players.OrderByDescending(x => x.Wins).ThenByDescending(x => x.Losses).FirstOrDefault();
+            var second = players.OrderByDescending(x => x.Wins).ThenByDescending(x => x.Losses).Skip(1).FirstOrDefault();
+            var third = players.OrderByDescending(x => x.Wins).ThenByDescending(x => x.Losses).Skip(2).FirstOrDefault();
 
-                // if the player has the same points and wins as the previous player give them the same rank
-                if (i > 0 && players[i].Points == players[lastRank - 1].Points && players[i].Wins == players[i - 1].Wins)
-                {
+            // Update the players
+            first.first++;
+            second.second++;
+            third.third++;
 
-                    players[i].LeaderboardRank = players[lastRank - 1].LeaderboardRank;
-                    lastRank = Convert.ToInt32(players[i].LeaderboardRank);
-                }
+            // Update players in players list
+            var index = players.FindIndex(x => x.ChallongeId == first.ChallongeId);
+            players[index] = first;
 
-                else
-                {
-                    players[i].LeaderboardRank = (lastRank + 1).ToString();
-                    lastRank = i + 1;
-                }
-            }
+            index = players.FindIndex(x => x.ChallongeId == second.ChallongeId);
+            players[index] = second;
 
-            return players;
+            index = players.FindIndex(x => x.ChallongeId == third.ChallongeId);
+            players[index] = third;
+
+            // Update the leaderboard
+            await spreadsheetViewModel.UpdatePlayers(settings.CurrentTournamentDetails.relatedSheetName, players);
+
         }
-
     }
 }

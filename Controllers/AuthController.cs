@@ -70,7 +70,7 @@ public class AuthController : Controller
         {
             HttpContext.Session.SetString("GoogleRefreshToken", refreshToken);
         }
-
+        
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity),
      authProperties);
 
