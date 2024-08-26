@@ -25,3 +25,5 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         BRANCH: gh-pages
         FOLDER: release/wwwroot
+    - name: Change base-tag in index.html from / to Beyblade-Tournament-Manager
+      run: sed -i 's/<base href="\/" \/>/<base href="\/Beyblade-Tournament-Manager\/" \/>/g' release/wwwroot/index.html
