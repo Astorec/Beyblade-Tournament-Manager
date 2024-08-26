@@ -75,23 +75,7 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
 
 
             // Get the participants
-            await _playersViewModel.GetParticipentsViaURL(code);
-
-            // Get the leaderboard information. Through this if the tournament was set up through Challonge, it will create
-            // a new sheet based on that infroamtion.
-            var leaderboard = await _spreadsheetViewModel.GetLeaderboard(sheetName);
-
-            // If the leaderboard is empty, we can add players to the sheet, this is more so if the tournament was set up
-            // on Challonge previously and already has players and data in it.
-            if (leaderboard.Count == 0)
-            {
-                var tempList = (List<Player>)_playersViewModel.Players;
-
-                foreach (var player in tempList)
-                {
-                    await _spreadsheetViewModel.AddNewPlayer(sheetName, player);
-                }
-            }
+            await GetParticipentsViaURL(code);
         }
 
         private async Task GetParticipentsViaURL(string code)

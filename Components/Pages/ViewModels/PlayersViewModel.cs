@@ -145,6 +145,24 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
             isLoading = true;
             OnStateChanged?.Invoke();
             List<Player> tempList = new List<Player>();
+
+            // Debug getting the match information from the Participants list matched with the Matches List
+            foreach (var match in matches)
+            {
+                // Check the Player 1 and Player 2 Ids, if it's not the Participant ID, check inside
+                // the GroupPlayersId List to see if the Participant ID is in there
+                if (participants.Any(x => x.Id == match.Player1Id) && participants.Any(x => x.Id == match.Player2Id))
+                {
+                    Console.WriteLine("Match ID: " + match.Id + " Player 1: " + match.Player1Id + " Player 2: " + match.Player2Id);
+                }
+                else if (participants.Any(x => x.GroupPlayerIds.Any(y => y == match.Player1Id)) && participants.Any(x => x.GroupPlayerIds.Any(y => y == match.Player2Id)))
+                {
+                    Console.WriteLine("Match ID: " + match.Id + " Player 1: " + match.Player1Id + " Player 2: " + match.Player2Id);
+                }
+
+            }
+
+
             foreach (var participant in participants)
             {
                 Player p = new Player
@@ -158,22 +176,15 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
 
                 if (tournament.State == TournamentState.Underway || tournament.State == TournamentState.Complete)
                 {
-                    // From matches find the players Wins and Losses
-                    var playerMatches = matches.Where(x => x.Player1Id == participant.Id || x.Player2Id == participant.Id).ToList();
-
-                    foreach (var match in playerMatches)
+                    foreach (Match match in matches)
                     {
-                        if (match.State != MatchState.Complete)
+                        if (participant.Id == match.WinnerId || participant.GroupPlayerIds.Any(x => x == match.WinnerId))
                         {
-                            continue;
+                            p.Wins += 1;
                         }
-                        if (match.WinnerId == participant.Id && match.State == MatchState.Open)
+                        else if(participant.Id == match.LoserId || participant.GroupPlayerIds.Any(x => x == match.LoserId))
                         {
-                            p.Wins++;
-                        }
-                        else if(match.State == MatchState.Open)
-                        {
-                            p.Losses++;
+                            p.Losses += 1;
                         }
                     }
                 }
