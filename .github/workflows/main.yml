@@ -9,7 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-
+    - name: Set environment variables
+      run: 
+        export MY_SECRET=${{ secrets.MY_SECRET }}
+        export MY_CLIENT_ID=${{ secrets.MY_CLIENT_ID }}
     - name: 'Setup DotNet core SDK 8.0'
       uses: actions/setup-dotnet@v1
       with:
