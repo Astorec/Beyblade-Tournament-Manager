@@ -54,8 +54,8 @@ builder.Services.AddAuthentication(options =>
         IConfigurationSection googleAuthNSection =
             builder.Configuration.GetSection("Authentication:Google");
 
-        options.ClientId = googleAuthNSection["ClientId"];
-        options.ClientSecret = googleAuthNSection["ClientSecret"];
+        options.ClientId = Environment.GetEnvironmentVariable("TOKEN");
+        options.ClientSecret = Environment.GetEnvironmentVariable("CLIENT_SECRET");
         options.Scope.Add("email");
         options.Scope.Add("profile");
         options.Scope.Add("https://www.googleapis.com/auth/drive.file");
