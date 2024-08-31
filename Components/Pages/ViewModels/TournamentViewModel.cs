@@ -6,6 +6,7 @@ using BeybladeTournamentManager.Helpers;
 using Challonge.Api;
 using Challonge.Objects;
 using Humanizer;
+using Match = Challonge.Objects.Match;
 
 namespace BeybladeTournamentManager.Components.Pages.ViewModels
 {
@@ -64,8 +65,11 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
             var tourneyInfo = await _client.GetTournamentByUrlAsync(code);
             string startDate = "";
 
-            startDate = tourneyInfo.StartedAt.Value.Date.ToString("dd/MM/yyyy");
-
+            if (tourneyInfo.StartedAt.HasValue)
+                startDate = tourneyInfo.StartedAt.Value.Date.ToString("dd/MM/yyyy");
+            else
+                startDate = tourneyInfo.CreatedAt.Date.ToString("dd/MM/yyyy");
+                
             string sheetName = $"{tourneyInfo.Name} - {startDate}";
 
             TournamentDetails = _tournamentManger.SetTournamentDetails(code, tourneyInfo.Name, sheetName);
@@ -89,6 +93,25 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
             if (code != "" && _client != null)
             {
                 _playersViewModel.isLoading = true;
+
+                Console.WriteLine("Setting current tournament details");
+                var currentSettings = _appSettings;
+                TournamentDetails.tournamentUrl = code;
+                currentSettings.CurrentTournamentDetails = TournamentDetails;
+                TournamentDetails td = new TournamentDetails
+                {
+                    tournamentUrl = code,
+                    tournamentName = TournamentDetails.tournamentName,
+                    relatedSheetName = TournamentDetails.relatedSheetName,
+                    isCompleted = false
+                };
+
+                if (currentSettings.TournamentDetails == null)
+                {
+                    currentSettings.TournamentDetails = new List<TournamentDetails>();
+                }
+                currentSettings.TournamentDetails.Add(td);
+                _settingsViewModel.SaveSettings(currentSettings);
                 try
                 {
                     Console.WriteLine("In Try of GetParticipentsViaURL");
@@ -127,11 +150,7 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                         _playersViewModel.PlayerCache[code] = playersCopy;
                     }
 
-                    Console.WriteLine("Setting current tournament details");
-                    var currentSettings = _appSettings;
-                    TournamentDetails.tournamentUrl = code;
-                    currentSettings.CurrentTournamentDetails = TournamentDetails;
-                    _settingsViewModel.SaveSettings(currentSettings);
+
                     Console.Write(_playersViewModel.Players.Count);
                     _playersViewModel.isLoading = false;
                 }
@@ -149,41 +168,87 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
             var matches = await _client.GetMatchesAsync(tournament);
             List<Player> tempList = new List<Player>();
 
+            if (_appSettings.CurrentTournamentDetails == null)
+            {
+                _appSettings.CurrentTournamentDetails = new TournamentDetails();
+            }
+            if (tournament.State == TournamentState.Complete)
+            {
+                var currentSettings = _appSettings;
+                if (currentSettings.TournamentDetails == null)
+                {
+                    currentSettings.TournamentDetails = new List<TournamentDetails>();
+
+                    var newDetails = new TournamentDetails
+                    {
+                        tournamentUrl = _appSettings.CurrentTournamentDetails.tournamentUrl,
+                        tournamentName = _appSettings.CurrentTournamentDetails.tournamentName,
+                        relatedSheetName = _appSettings.CurrentTournamentDetails.relatedSheetName,
+                        isCompleted = true
+                    };
+
+                    currentSettings.TournamentDetails.Add(newDetails);
+                }
+                else
+                {
+                    var currentTournament = currentSettings.TournamentDetails.Find(x => x.tournamentUrl == _appSettings.CurrentTournamentDetails.tournamentUrl);
+                    currentTournament.isCompleted = true;
+
+                    // update settings with the new details
+                    currentSettings.TournamentDetails.Remove(currentTournament);
+                    currentSettings.TournamentDetails.Add(currentTournament);
+                }
+                var tournamentDetails = currentSettings.TournamentDetails;
+                currentSettings.TournamentDetails = tournamentDetails;
+                _settingsViewModel.SaveSettings(currentSettings);
+            }
+
             // Update settings to the latest
             _appSettings = _settingsViewModel.GetSettings;
-            foreach (var participant in participants)
+            if (!_appSettings.CurrentTournamentDetails.addedToMainSheet)
             {
-                Player p = new Player
+                foreach (var participant in participants)
                 {
-                    Name = participant.Name,
-                    ChallongeId = participant.Id,
-                    CheckInState = participant.CheckedIn,
-                    CheckInTime = participant.CheckedInAt
-                };
-
-                await _spreadsheetViewModel.AddNewPlayer(_appSettings.CurrentTournamentDetails.relatedSheetName, p);
-                if (tournament.State == TournamentState.Underway || tournament.State == TournamentState.Complete)
-                {
-                    // From matches find the players Wins and Losses
-                    var playerMatches = matches.Where(x => x.Player1Id == participant.Id || x.Player2Id == participant.Id).ToList();
-
-                    foreach (var match in playerMatches)
+                    Player p = new Player
                     {
-                        if (match.State != MatchState.Complete)
+                        Name = participant.Name,
+                        region = "",
+                        ChallongeId = participant.Id,
+                        CheckInState = participant.CheckedIn,
+                        CheckInTime = participant.CheckedInAt
+                    };
+
+                    if (tournament.State == TournamentState.Underway || tournament.State == TournamentState.Complete)
+                    {
+                        foreach (Match match in matches)
                         {
-                            continue;
-                        }
-                        if (match.WinnerId == participant.Id && match.State == MatchState.Open)
-                        {
-                            p.Wins++;
-                        }
-                        else if (match.State == MatchState.Open)
-                        {
-                            p.Losses++;
+                            if (participant.Id == match.WinnerId || participant.GroupPlayerIds.Any(x => x == match.WinnerId))
+                            {
+                                p.Wins += 1;
+                            }
+                            else if (participant.Id == match.LoserId || participant.GroupPlayerIds.Any(x => x == match.LoserId))
+                            {
+                                p.Losses += 1;
+                            }
                         }
                     }
+
+                    _playersViewModel.Players.Add(p);
                 }
             }
+
+            await _spreadsheetViewModel.AddNewPlayers(_appSettings.CurrentTournamentDetails.relatedSheetName, _playersViewModel.Players);
+
+            if (_appSettings.TournamentDetails != null && _appSettings.TournamentDetails.Find(x => x.tournamentUrl == _appSettings.CurrentTournamentDetails.tournamentUrl).isCompleted
+            && !_appSettings.CurrentTournamentDetails.addedToMainSheet)
+            {
+
+                await _spreadsheetViewModel.UpdatePlayersInMainSheet(_playersViewModel.Players);
+                _appSettings.TournamentDetails.Find(x => x.tournamentUrl == _appSettings.CurrentTournamentDetails.tournamentUrl).addedToMainSheet = true;
+                _appSettings.CurrentTournamentDetails.addedToMainSheet = true;
+                _settingsViewModel.SaveSettings(_appSettings);
+            }
+
         }
 
         public async Task StartTournament()

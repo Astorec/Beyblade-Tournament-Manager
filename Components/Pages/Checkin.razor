@@ -52,7 +52,7 @@ else
                     <MudTh>Check-In Time</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd>@context.Name</MudTd>
+                    <MudTd>@context.Name - ID: @context.ChallongeId</MudTd>
                     <MudTd>
                         <MudSelect T="string" Value="@context.region"
                             ValueChanged="@(EventCallback.Factory.Create<string>(this, (string e) => context.region = e))">

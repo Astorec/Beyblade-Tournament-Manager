@@ -52,6 +52,7 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                     GoogleAppName = configuration["GoogleAppName"],
                     CurrentTournament = configuration["CurrentTournament"],
                     CurrentTournamentDetails = configuration.GetSection("CurrentTournamentDetails").Get<TournamentDetails>(),
+                    TournamentDetails = configuration.GetSection("TournamentDetails").Get<List<TournamentDetails>>(),
                     SheetID = configuration["SheetID"],
                     PreviousTournements = configuration.GetSection("PreviousTournements").Get<Dictionary<string, string>>(),
                 };
@@ -82,6 +83,13 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                 SheetID = settings.SheetID,
                 PreviousTournements = settings.PreviousTournements,
             };
+            // Append TournamentDetails to the settings if it's not already there
+            if (settings.TournamentDetails != null)
+            {
+                _appSettings.TournamentDetails = settings.TournamentDetails;
+            }
+
+
             var configFilePath = Path.Combine(Directory.GetCurrentDirectory(), "appsettings.user.json");
             var settingsJson = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(configFilePath, settingsJson);

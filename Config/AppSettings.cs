@@ -10,6 +10,7 @@ namespace BeybladeTournamentManager.Config
         public string? GoogleAppName {get; set;}
         public string SheetID {get; set;}
         public Dictionary<string, string>? PreviousTournements{get; set;}
+        public List<TournamentDetails>? TournamentDetails{get; set;}
         public string CurrentTournament{get; set;}
         public TournamentDetails? CurrentTournamentDetails {get; set;}
     }

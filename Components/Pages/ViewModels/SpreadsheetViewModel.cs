@@ -226,7 +226,7 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
 
             return players;
         }
-        public async Task AddNewPlayer(string sheetTitle, Player player)
+        public async Task AddNewPlayers(string sheetTitle, List<Player> players)
         {
             // Don't like adding these in, but found that when the sheet is created and we move on to populating it
             // with the players, the sheet would start overriding data and I think it was using the first row even
@@ -251,67 +251,78 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                     return;
                 }
 
-                var values = GetSheetValues(sheetTitle).Result.Execute().Values;
-
-                // Check to see if the player already exists in the sheet
-                if (values != null)
-                {
-                    foreach (var row in values)
-                    {
-                        if (row[1].ToString() == player.Name)
-                        {
-                            Console.WriteLine($"Player {player.Name} already exists in the sheet {sheetTitle}");
-                            return;
-                        }
-                    }
-                }
-                // Get next empty row number
-                int newRowNumber = values.Count + 1;
-                string rank = $"=RANK(J{newRowNumber},J{newRowNumber}:J$400,0)";
-                var range = $"{sheetTitle}!A{newRowNumber}:T";
-                string sumFormula = $"=SUM(C{newRowNumber},(E{newRowNumber}*3),(F{newRowNumber}*2),(G{newRowNumber}*1))";
-                string winRatioFormula = $"=IFERROR(ROUND((C{newRowNumber}/(C{newRowNumber}+D{newRowNumber})), 2), \"\")";
-                string customFormula = $"=ROUND((H{newRowNumber} * 100) * I{newRowNumber})";
-
-
-
-                // Add the new row with formulas
-                var newRow = new List<object>
-        {
-            rank,
-            player.Name,
-            player.Wins,
-            player.Losses,
-            player.first,
-            player.second,
-            player.third,
-            sumFormula,
-            winRatioFormula,
-            customFormula,
-            player.region
-        };
-
-
-                var updateRange = $"{sheetTitle}!A{newRowNumber}:T";
-                var valueRange = new ValueRange { Values = new List<IList<object>> { newRow } };
-
-                var appendRequest = UpdateSheet(updateRange, valueRange).Result;
-                appendRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
-                await appendRequest.ExecuteAsync();
-
-
+                var values = GetSheetValues(sheetTitle).Result.Execute().Values.ToList();
 
                 // Find header index
                 var expectedColumnNames = new List<string> { "Rank", "Blader", "Wins", "Losses", "1st", "2nd", "3rd",
                         "Points", "Win%", "Rating", "Region", "Column 1", "Column 2", "Column 3", "Column 4" , "Column 5",
                         "Column 6", "Column 7", "Column 8", "Column 9" };
                 int headerRowIndex = GetRowHeaderIndex(sheetTitle, expectedColumnNames);
+                // Temp List to hold new valueRanges
+                List<ValueRange> valueRanges = new List<ValueRange>();
+                int count = headerRowIndex + 2;
+
+
+                foreach (var p in players)
+                {
+                    // Check to see if the player already exists in the sheet
+                    if (values != null)
+                    {
+                        foreach (var row in values)
+                        {
+                            if (row[1].ToString() == p.Name)
+                            {
+                                Console.WriteLine($"Player {p.Name} already exists in the sheet {sheetTitle}");
+                                break;
+                            }
+                        }
+
+                        var emptyRow = count;
+                        string rank = $"=RANK(J{emptyRow},J${emptyRow}:J$400,0)";
+                        var range = $"{sheetTitle}!A{emptyRow}:T";
+                        string sumFormula = $"=SUM(C{emptyRow},(E{emptyRow}*3),(F{emptyRow}*2),(G{emptyRow}*1))";
+                        string winRatioFormula = $"=IFERROR(ROUND((C{emptyRow}/(C{emptyRow}+D{emptyRow})), 2), \"\")";
+                        string customFormula = $"=ROUND((H{emptyRow} * 100) * I{emptyRow})";
+                        // Add the new row with formulas
+                        var newRow = new List<object>
+                        {
+                            rank,
+                            p.Name,
+                            p.Wins,
+                            p.Losses,
+                            p.first,
+                            p.second,
+                            p.third,
+                            sumFormula,
+                            winRatioFormula,
+                            customFormula,
+                            p.region
+                        };
+                        var updateRange = $"{sheetTitle}!A{emptyRow}:T";
+
+                        var valueRange = new ValueRange
+                        {
+                            Range = updateRange,
+                            Values = new List<IList<object>> { newRow }
+                        };
+                        valueRanges.Add(valueRange);
+                        count++;
+                    }
+                }
+
+                // Update the sheet with the new values
+                var batchUpdateRequest = new BatchUpdateValuesRequest
+                {
+                    Data = valueRanges,
+                    ValueInputOption = "USER_ENTERED"
+                };
+
+                var batchUpdate = _googleService.GetService().Spreadsheets.Values.BatchUpdate(batchUpdateRequest, sheetId);
+                batchUpdate.Execute();
 
                 // Update cache from google not including header
                 var dataResponse = GetSheetValues($"{sheetTitle}!A{headerRowIndex + 2}:T").Result.Execute();
                 _cache[sheetTitle] = dataResponse.Values;
-
-                //Console.WriteLine($"Response: {response} - Player {player.Name} added to sheet {sheetTitle}");
             }
             catch (Exception ex)
             {
@@ -319,6 +330,144 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                 Console.WriteLine($"Stack Trace: {ex.StackTrace}");
             }
         }
+
+        public async Task UpdatePlayersInMainSheet(List<Player> players)
+        {
+            // Get the first sheet from the google sheet api
+            var mainSheet = GetMainSheet().Result.Execute();
+            bool toBeUpdated = false;
+            // Get the values from the sheet
+            var values = mainSheet.Values.ToList();
+            // Find header index
+            var expectedColumnNames = new List<string> { "Rank", "Blader", "Wins", "Losses", "1st", "2nd", "3rd",
+                        "Points", "Win%", "Rating", "Region", "Column 1", "Column 2", "Column 3", "Column 4" , "Column 5",
+                        "Column 6", "Column 7", "Column 8", "Column 9" };
+
+            // get header index from mainSheet
+            int headerRowIndex = mainSheet.Values.ToList().FindIndex(x => x.SequenceEqual(expectedColumnNames));
+
+            List<ValueRange> valueRanges = new List<ValueRange>();
+            int count = 1;
+            foreach (var p in players)
+            {
+                bool updatedUser = false;
+                // Check to see if the player already exists in the sheet
+                if (values != null)
+                {
+                    foreach (var row in values)
+                    {
+                        if (values.Any(x => x.Count > 1 && x[1].ToString() == p.Name))
+                        {
+                            updatedUser = true;
+                            // get row to update
+                            var index = values.FindIndex(x => x[1].ToString() == p.Name);
+
+                            string updateTank = $"=RANK(J{index},J${index}:J$400,0)";
+                            var updatedRange = $"A{index}:T";
+                            string updatedSumFormula = $"=SUM(C{index},(E{index}*3),(F{index}*2),(G{index}*1))";
+                            string updatedWinRatioFormula = $"=IFERROR(ROUND((C{index}/(C{index}+D{index})), 2), \"\")";
+                            string updatedCustomFormula = $"=ROUND((H{index} * 100) * I{index})";
+                            var updatedRow = new List<object>
+                        {
+                            updateTank,
+                            p.Name,
+                            p.Wins,
+                            p.Losses,
+                            p.first,
+                            p.second,
+                            p.third,
+                            updatedSumFormula,
+                            updatedWinRatioFormula,
+                            updatedCustomFormula,
+                            p.region
+                        };
+                            var existingRange = $"A{index}:T";
+                            var updatedValueRange = new ValueRange
+                            {
+                                Range = existingRange,
+                                Values = new List<IList<object>> { updatedRow }
+                            };
+                            valueRanges.Add(updatedValueRange);
+                            break;
+                        }
+                    }
+
+                    if (!updatedUser)
+                    {
+                        // Get next avaliable row where blader is blank and is after the header
+                        var emptyRow = values.FindIndex(x => x.Count > 1 && string.IsNullOrEmpty(x[1].ToString())) + count;
+
+                        string rank = $"=RANK(J{emptyRow},J${emptyRow}:J$400,0)";
+                        var range = $"A{emptyRow}:T";
+                        string sumFormula = $"=SUM(C{emptyRow},(E{emptyRow}*3),(F{emptyRow}*2),(G{emptyRow}*1))";
+                        string winRatioFormula = $"=IFERROR(ROUND((C{emptyRow}/(C{emptyRow}+D{emptyRow})), 2), \"\")";
+                        string customFormula = $"=ROUND((H{emptyRow} * 100) * I{emptyRow})";
+                        // Add the new row with formulas
+                        var newRow = new List<object>
+                        {
+                            rank,
+                            p.Name,
+                            p.Wins,
+                            p.Losses,
+                            p.first,
+                            p.second,
+                            p.third,
+                            sumFormula,
+                            winRatioFormula,
+                            customFormula,
+                            p.region
+                        };
+                        var updateRange = $"A{emptyRow}:T";
+                        var valueRange = new ValueRange
+                        {
+                            Range = updateRange,
+                            Values = new List<IList<object>> { newRow }
+                        };
+                        valueRanges.Add(valueRange);
+                        count++;
+                    }
+                }
+            }
+
+            // add each value in the sheet based on player names
+            foreach (var p in players)
+            {
+                // Find the player in the values IList<IList<object>> and update the values
+                var index = valueRanges.FindIndex(x => x.Values.Where(y => y.Select(z => z.ToString()).Contains(p.Name)).Any());
+
+                // convert the values to int
+                int wins = int.TryParse(values[index][2].ToString(), out var totalWins) ? totalWins : 0;
+                int losses = int.TryParse(values[index][3].ToString(), out var totalLosses) ? totalLosses : 0;
+                int first = int.TryParse(values[index][4].ToString(), out var totalFirst) ? totalFirst : 0;
+                int second = int.TryParse(values[index][5].ToString(), out var totalSecond) ? totalSecond : 0;
+                int third = int.TryParse(values[index][6].ToString(), out var totalThird) ? totalThird : 0;
+
+                // update the values
+                wins += p.Wins;
+                losses += p.Losses;
+                first += p.first;
+                second += p.second;
+                third += p.third;
+
+                // Update the values
+                values[index][2] = wins;
+                values[index][3] = losses;
+                values[index][4] = first;
+                values[index][5] = second;
+                values[index][6] = third;
+            }
+
+            // update sheet based on valueRanges
+            var batchUpdateRequest = new BatchUpdateValuesRequest
+            {
+                Data = valueRanges,
+                ValueInputOption = "USER_ENTERED"
+            };
+
+            var batchUpdate = _googleService.GetService().Spreadsheets.Values.BatchUpdate(batchUpdateRequest, sheetId);
+            batchUpdate.Execute();
+        }
+
         public async Task UpdatePlayers(string sheetTtile, List<Player> players)
         {
             // get sheet from cache
@@ -446,6 +595,15 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
             return _googleService.GetService().Spreadsheets.Values.Append(valueRange, sheetId, range);
         }
 
+        private async Task<SpreadsheetsResource.ValuesResource.GetRequest> GetMainSheet()
+        {
+            // find the first sheet in the list of sheets
+            var getSheet = GetSpreadsheets().Result;
+            Spreadsheet spreadsheet = getSheet.Execute();
+
+            return _googleService.GetService().Spreadsheets.Values.Get(sheetId, $"{spreadsheet.Sheets[0].Properties.Title}!A1:T");
+        }
+
         /// <summary>
         /// Get the row index of the header row in the sheet
         /// </summary>
@@ -495,7 +653,7 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
             bool requiresUpdate = false;
             // Define the data range based on the header row index
             var dataStartRow = headerRowIndex + 2; // Assuming data starts two rows after the header
-            // Set the data range based on the sheet title and then we use the starting row to get the data
+                                                   // Set the data range based on the sheet title and then we use the starting row to get the data
             var dataRangeToFetch = $"{sheetTitle}!A{dataStartRow}:T";
             var dataRequest = _googleService.GetService().Spreadsheets.Values.Get("17vbW07-DwltCwamcXXUq1OgIqg4zsRbWtnN9UX5arQ0", dataRangeToFetch);
             ValueRange dataResponse = dataRequest.Execute();

@@ -52,7 +52,7 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
                 player.ChallongeId = participant.Id;
                 _players.Add(player);
                 playerCache[currentTournament].Add(player);
-                await _spreadsheetViewModel.AddNewPlayer(currentSHeet, player);
+                await _spreadsheetViewModel.AddNewPlayers(currentSHeet, _players);
                 OnStateChanged?.Invoke();
             }
             catch (Exception e)
@@ -162,37 +162,79 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
 
             }
 
-
-            foreach (var participant in participants)
+            if (tournament.State == TournamentState.Complete)
             {
-                Player p = new Player
+                var currentSettings = _appSettings;
+                if (currentSettings.TournamentDetails == null)
                 {
-                    Name = participant.Name,
-                    region = "",
-                    ChallongeId = participant.Id,
-                    CheckInState = participant.CheckedIn,
-                    CheckInTime = participant.CheckedInAt
-                };
+                    currentSettings.TournamentDetails = new List<TournamentDetails>();
 
-                if (tournament.State == TournamentState.Underway || tournament.State == TournamentState.Complete)
-                {
-                    foreach (Match match in matches)
+                    var newDetails = new TournamentDetails
                     {
-                        if (participant.Id == match.WinnerId || participant.GroupPlayerIds.Any(x => x == match.WinnerId))
+                        tournamentUrl = _appSettings.CurrentTournamentDetails.tournamentUrl,
+                        tournamentName = _appSettings.CurrentTournamentDetails.tournamentName,
+                        relatedSheetName = _appSettings.CurrentTournamentDetails.relatedSheetName,
+                        isCompleted = true
+                    };
+
+                    currentSettings.TournamentDetails.Add(newDetails);
+                }
+                else
+                {
+                    var currentTournament = currentSettings.TournamentDetails.Find(x => x.tournamentUrl == _appSettings.CurrentTournamentDetails.tournamentUrl);
+                    currentTournament.isCompleted = true;
+
+                    // update settings with the new details
+                    currentSettings.TournamentDetails.Remove(currentTournament);
+                    currentSettings.TournamentDetails.Add(currentTournament);
+                }
+                var tournamentDetails = currentSettings.TournamentDetails;
+                currentSettings.TournamentDetails = tournamentDetails;
+                _settingsViewModel.SaveSettings(currentSettings);
+            }
+            if (!_appSettings.CurrentTournamentDetails.addedToMainSheet)
+            {
+                foreach (var participant in participants)
+                {
+                    Player p = new Player
+                    {
+                        Name = participant.Name,
+                        region = "",
+                        ChallongeId = participant.Id,
+                        CheckInState = participant.CheckedIn,
+                        CheckInTime = participant.CheckedInAt
+                    };
+
+                    if (tournament.State == TournamentState.Underway || tournament.State == TournamentState.Complete)
+                    {
+                        foreach (Match match in matches)
                         {
-                            p.Wins += 1;
-                        }
-                        else if(participant.Id == match.LoserId || participant.GroupPlayerIds.Any(x => x == match.LoserId))
-                        {
-                            p.Losses += 1;
+                            if (participant.Id == match.WinnerId || participant.GroupPlayerIds.Any(x => x == match.WinnerId))
+                            {
+                                p.Wins += 1;
+                            }
+                            else if (participant.Id == match.LoserId || participant.GroupPlayerIds.Any(x => x == match.LoserId))
+                            {
+                                p.Losses += 1;
+                            }
                         }
                     }
+                   
+                    _players.Add(p);
                 }
-
-
-                _spreadsheetViewModel.AddNewPlayer(_appSettings.CurrentTournamentDetails.relatedSheetName, p);
-                _players.Add(p);
             }
+
+            await _spreadsheetViewModel.AddNewPlayers(_appSettings.CurrentTournamentDetails.relatedSheetName, _players);
+
+            if (_appSettings.TournamentDetails != null && _appSettings.TournamentDetails.Find(x => x.tournamentUrl == _appSettings.CurrentTournamentDetails.tournamentUrl).isCompleted)
+            {
+
+                await _spreadsheetViewModel.UpdatePlayersInMainSheet(_players);
+                _appSettings.TournamentDetails.Find(x => x.tournamentUrl == _appSettings.CurrentTournamentDetails.tournamentUrl).addedToMainSheet = true;
+                _appSettings.CurrentTournamentDetails.addedToMainSheet = true;
+                _settingsViewModel.SaveSettings(_appSettings);
+            }
+
             isLoading = false;
             OnStateChanged?.Invoke();
         }

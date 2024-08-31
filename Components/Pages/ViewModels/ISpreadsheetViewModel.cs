@@ -13,7 +13,8 @@ namespace BeybladeTournamentManager.Components.Pages.ViewModels
         Task GetSheets();
         Sheet GetSheetFromCache(string sheetTitle);
         Task CreateSheet(string sheetTitle);
-        Task AddNewPlayer(string sheetName, Player player);
+        Task AddNewPlayers(string sheetName, List<Player> players);
+        Task UpdatePlayersInMainSheet(List<Player> players);
         Task UpdatePlayers(string sheetName, List<Player> players);
         Task<List<Player>> GetLeaderboard(string sheetTitle);
         Task SortSheet(string sheetTitle);
