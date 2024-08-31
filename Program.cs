@@ -54,8 +54,26 @@ builder.Services.AddAuthentication(options =>
         IConfigurationSection googleAuthNSection =
             builder.Configuration.GetSection("Authentication:Google");
 
-        options.ClientId = googleAuthNSection["ClientId"];
-        options.ClientSecret = googleAuthNSection["ClientSecret"];
+
+        string clientId = Environment.GetEnvironmentVariable("TOKEN");
+        string clientSecret = Environment.GetEnvironmentVariable("CLIENT_SECRET");
+
+        // Add logging to verify the values
+        Console.WriteLine($"ClientId: {clientId}");
+        Console.WriteLine($"ClientSecret: {clientSecret}");
+
+        if (string.IsNullOrEmpty(clientId))
+        {
+            throw new ArgumentException("The 'ClientId' option must be provided.", nameof(clientId));
+        }
+
+        if (string.IsNullOrEmpty(clientSecret))
+        {
+            throw new ArgumentException("The 'ClientSecret' option must be provided.", nameof(clientSecret));
+        }
+
+        options.ClientId = clientId;
+        options.ClientSecret = clientSecret;
         options.Scope.Add("email");
         options.Scope.Add("profile");
         options.Scope.Add("https://www.googleapis.com/auth/drive.file");

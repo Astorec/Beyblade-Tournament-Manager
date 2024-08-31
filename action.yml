@@ -1,0 +1,32 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  job_id:
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        workload_identity_provider: 'projects/123456789/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
+        service_account: ${{ secrets.SERVICE_ACC }}
+
+    - id: 'secrets'
+      uses: 'google-github-actions/get-secretmanager-secrets@v2'
+      with:
+        secrets: |-
+          secret: ${{ secrets.CLIENT_SECRET }}
+          clientId: ${{ secrets.CLIENT_ID }}
+    - name: Set Env variables
+      run: |
+          echo "TOKEN=${{ steps.secrets.outputs.token }}" >> $GITHUB_ENV
+          echo "CLIENT_SECRET=${{ steps.secrets.outputs.client_secret }}" >> $GITHUB_ENV
+      shell: bash

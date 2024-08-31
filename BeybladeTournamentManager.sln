@@ -5,6 +5,10 @@ VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeybladeTournamentManager", "BeybladeTournamentManager.csproj", "{746B5EF4-422F-41AB-A748-90C8898CF0FC}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BeybladeTournamentManager.Hybrid", "BeybladeTournamentManager.Hybrid", "{B1041345-100F-4FE1-B30D-E94ABF29218C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BeybladeTournamentManager.Hybrid", "BeybladeTournamentManager.Hybrid\BeybladeTournamentManager.Hybrid\BeybladeTournamentManager.Hybrid.csproj", "{6B8AB768-EA40-4208-95CA-CDAAE3481A6E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -19,11 +23,18 @@ Global
 		{0FCFC6E2-C78E-46CA-9BFE-526C32E0D25B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0FCFC6E2-C78E-46CA-9BFE-526C32E0D25B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0FCFC6E2-C78E-46CA-9BFE-526C32E0D25B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6B8AB768-EA40-4208-95CA-CDAAE3481A6E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B8AB768-EA40-4208-95CA-CDAAE3481A6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B8AB768-EA40-4208-95CA-CDAAE3481A6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B8AB768-EA40-4208-95CA-CDAAE3481A6E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3A6E7011-2EC4-4059-B02F-69DF5A510FD9}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6B8AB768-EA40-4208-95CA-CDAAE3481A6E} = {B1041345-100F-4FE1-B30D-E94ABF29218C}
 	EndGlobalSection
 EndGlobal
